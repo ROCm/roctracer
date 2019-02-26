@@ -24,7 +24,7 @@ THE SOFTWARE.
 #define INC_ROCTRACER_HCC_H_
 
 #if LOCAL_BUILD
-#include <hc_prof_runtime.h>
+#include <inc/hc_prof_runtime.h>
 #else
 #include <hcc/hc_prof_runtime.h>
 #endif
