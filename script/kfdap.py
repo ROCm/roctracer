@@ -39,10 +39,11 @@ def fatal(module, msg):
 
 # Get next text block
 def NextBlock(pos, record): 
+  print ("record and pos", record, pos);
   if len(record) == 0: return pos
 
   space_pattern = re.compile(r'(\s+)')
-  word_pattern = re.compile(r'([\w\*]+\[*\]*)')   
+  word_pattern = re.compile(r'([\w\*]+\[*\]*)')
   if record[pos] != '(':
     m = space_pattern.match(record, pos)
     if not m:
@@ -83,7 +84,7 @@ class API_TableParser:
 
     self.inp = open(header, 'r')
 
-    
+    print ("NAME", name);
     self.beg_pattern = re.compile(name) 
     self.end_pattern = re.compile('.*\)\s*;\s*$'); 
     self.inc_pattern = re.compile('\s*#include\s+(.*)$');
@@ -92,13 +93,13 @@ class API_TableParser:
 
   # normalizing a line
   def norm_line(self, line):
-    return re.sub(r'^\s+', r' ', line) #[:-1])
+    return re.sub(r'^\s+', r' ', line)
 
   def fix_comment_line(self, line):
-    return re.sub(r'\/\/.*', r'', line) #[:-1])
+    return re.sub(r'\/\/.*', r'', line) 
 
   def remove_ret_line(self, line):
-    return re.sub(r'\n', r'', line) #[:-1])
+    return re.sub(r'\n', r'', line) 
 
   # check for start record
   def is_start(self, record):
@@ -123,16 +124,20 @@ class API_TableParser:
     self.full_fct={}
     self.get_includes=[]
     for line in self.inp.readlines():
+      print ("LINE before", line)
       m=self.is_include(line)
       if m:
+          print ("INCLUDE, FILE", line,m.group(1))
           self.get_includes.append(m.group(1))
       line = self.norm_line(line)
       line = self.fix_comment_line(line)
 
-      if cumulate == 1: record += " " + line; 
+      print ("LINE", line)
+
+      if cumulate == 1: record += " " + line; print ("after concat", record);
       else: record = line;
       if self.is_start(line): cumulate = 1; continue;
-      if self.is_end(line): record = self.remove_ret_line(record); cumulate=0; active =1;
+      if self.is_end(line): record = self.remove_ret_line(record); print ("Pattern found", record); cumulate=0; active =1;
 
       else: continue;
       if active != 0:
@@ -140,6 +145,7 @@ class API_TableParser:
         if m:
           mycall_full="void " +m.group(1)+' ('+m.group(2)+')'
           mycall=m.group(1)
+          print ("APPEND", mycall)
           self.full_fct[mycall]=mycall_full
           self.array.append(mycall) 
 
@@ -161,7 +167,7 @@ class API_DeclParser:
       if call in data:
         self.fatal(call + ' is already found')
       print("calling parse 2");
-      self.parse(call,full_fct,get_includes)  
+      self.parse(call,full_fct,get_includes)
 
   # api record filter
   #def api_filter(self, record):
@@ -186,17 +192,22 @@ class API_DeclParser:
 
   # parse method args
   def get_args(self, record):
+    print ("RECORD", record);
     struct = {'ret': '', 'args': '', 'astr': {}, 'alst': [], 'tlst': []}
     record = re.sub(r'^\s+', r'', record)
     record = re.sub(r'\s*(\*+)\s*', r'\1 ', record)
     rind = NextBlock(0, record) 
     struct['ret'] = record[0:rind]
     pos = record.find('(')
+    print ("POS", pos)
     end = NextBlock(pos, record);
+    print ("POSEND", end)
     args = record[pos:end]
+    print ("ARGS", args)
     args = re.sub(r'^\(\s*', r'', args)
     args = re.sub(r'\s*\)$', r'', args)
     args = re.sub(r'\s*,\s*', r',', args)
+    print ("ARGSAFTER", args)
     struct['args'] = re.sub(r',', r', ', args)
     if args == "void":
       return struct
@@ -236,6 +247,7 @@ class API_DeclParser:
 
   # parse given api
   def parse(self, call, full_fct,get_includes):
+    print ("CALL, full_fct length", call, len(full_fct));
     if call in full_fct: 
       self.data[call] = self.get_args(full_fct[call])
     else:
@@ -247,6 +259,7 @@ class API_DeclParser:
 
   # parse given api
   def parse_old(self, call):
+    print ("CALL", call);
     record = ''
     active = 0
     found = 0
@@ -255,6 +268,7 @@ class API_DeclParser:
 
     self.inp.seek(0)
     for line in self.inp.readlines():
+      print ("LINE2", line);
       record += ' ' + line[:-1]
       record = re.sub(r'^\s*', r' ', record)
 
@@ -305,6 +319,7 @@ class API_DescrParser:
         api = API_TableParser(kfd_dir + api_table_h, name, full_fct, get_includes)
         full_fct = api.full_fct
         get_includes = api.get_includes
+        print ("SIZE", len(full_fct))
         api_list = api.array
         self.api_names.append(name)
         self.api_calls[name] = api_list
@@ -313,9 +328,11 @@ class API_DescrParser:
         ns_calls = []
 
       for call in api_list:
+        print ("CALL", call);
         if call in api_data:
           self.fatal("call '"  + call + "' is already found")
 
+      print ("DATA", api_data);
       API_DeclParser(kfd_dir + header, api_list, api_data, full_fct,get_includes)
 
       for call in api_list:
@@ -328,6 +345,7 @@ class API_DescrParser:
           # Return types
           self.api_rettypes.add(api_data[call]['ret'])
 
+    print ("HERE ", len(full_fct))
     self.api_rettypes.discard('void')
     self.api_data = api_data
     self.ns_calls = ns_calls
@@ -335,25 +353,18 @@ class API_DescrParser:
     self.content += "// automatically generated\n\n" + license + '\n'
     
     self.content += "/////////////////////////////////////////////////////////////////////////////\n"
-    #self.content += "//\n"
-    #self.content += "// KFD API include (was tracing primitives)\n"
-    #self.content += "//\n"
-    #for (name, header) in api_headers:
-    #  self.content += "// '" + name + "', header '" + header + "', " + str(len(self.api_calls[name])) + ' funcs\n'
     for call in self.ns_calls:
       self.content += '// ' + call + ' was not parsed\n'
-    #self.content += "//\n"
-    #self.content += "/////////////////////////////////////////////////////////////////////////////\n"
     self.content += '\n'
     self.content += '#ifndef ' + out_macro + '\n'
     self.content += '#define ' + out_macro + '\n'
 
     self.content += '\n'
-    for incl in get_includes:
-      self.content += '#include ' + incl + '\n'
+    #for incl in get_includes: NOT NEEDED
+    #  self.content += '#include ' + incl + '\n'
 
     self.content += '#include <dlfcn.h>\n'
-    self.content += '#include <iostream>\n'
+    #self.content += '#include <iostream>\n'
     self.content += '#include \"roctracer_kfd.h\"\n'
     self.content += '#include \"hsakmt.h\"\n'
 
@@ -377,6 +388,9 @@ class API_DescrParser:
     self.content += '#endif // PROF_API_IMPL\n'
 
     self.add_section('API output stream', '    ', self.gen_out_stream)
+    self.add_section('API output stream', '    ', self.gen_public_api)
+    self.content += '}\n'
+
     self.content += '\n'
 
     self.content += '#endif // ' + out_macro
@@ -389,6 +403,7 @@ class API_DescrParser:
     for index in range(len(self.api_names)):
       last = (index == len(self.api_names) - 1)
       name = self.api_names[index]
+      print ("API", name)
 
       if n != 0:
         if gap == '': fun(n, name, '-', {})
@@ -488,19 +503,15 @@ class API_DescrParser:
     if n > 0 and call == '-':
       self.content += '};\n'
     if n == 0 or (call == '-' and name != '-'):
-      #self.content += 'static void intercept_' + name + '(' + name + '* table) {\n'
-      #self.content += '} ' + name + '_saved_t;\n'
       self.content += name + '_saved_t* ' + name + '_saved = NULL;\n'
       self.content += 'void intercept_' + 'KFDApiTable' + '(void) {\n'
-      #self.content += '  ' + name + '_saved = *table;\n'
       self.content += '  ' + name + '_saved = new ' + name + '_saved_t{}' + ';\n'
 
     if call != '-':
       if call != 'hsa_shut_down':
         self.content += '  typedef decltype(' + name + '_saved_t::' + call + '_fn) ' + call + '_t;\n'
-        #self.content += '  table->' + call + '_fn = ' + call + '_callback;\n'
         self.content += '  ' + name + '_saved->' + call + '_fn = (' + call + '_t)' + 'dlsym(RTLD_NEXT,\"'  + call + '\");\n' 
-      else: # Unused
+      else: 
         self.content += '  { void* p = (void*)' + call + '_callback; (void)p; }\n'
 
   # generate API name function
@@ -574,10 +585,20 @@ class API_DescrParser:
       self.content += '  return out;\n'
       self.content += '}\n'
       self.content += 'inline std::ostream& operator<< (std::ostream& out, const HsaMemFlags& v) { out << "HsaMemFlags"; return out; }\n' 
-      self.content += 'extern "C" {\n'
-      self.content += '#include "kfd_ostream.h"\n' # Mix of auto and manual
-      self.content += '}\n'
 
+
+
+  def gen_public_api(self, n, name, call, struct):
+    if n == -1:
+      self.content += 'extern "C" {\n'
+    if call != '-':
+      self.content += 'PUBLIC_API HSAKMT_STATUS ' + call + '(' + struct['args'] + ') { roctracer::kfd_support::' + call + '_callback('
+      for i in range(0,len(struct['alst'])):
+        if i == (len(struct['alst'])-1):
+          self.content += struct['alst'][i].replace("[]","") 
+        else:
+          self.content += struct['alst'][i].replace("[]","") + ', '
+      self.content +=  ');} \n'
 
 #############################################################
 # main
