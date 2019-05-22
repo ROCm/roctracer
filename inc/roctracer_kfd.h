@@ -20,8 +20,8 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
 
-#ifndef INC_ROCTRACER_HSA_H_
-#define INC_ROCTRACER_HSA_H_
+#ifndef INC_ROCTRACER_KFD_H_
+#define INC_ROCTRACER_KFD_H_
 #include <iostream>
 #include <mutex>
 
@@ -155,4 +155,4 @@ struct output_streamer<hsa_queue_t**> {
 };};
 
 //#include "inc/kfd_prof_str.h"
-#endif // INC_ROCTRACER_HSA_H_
+#endif // INC_ROCTRACER_KFD_H_
