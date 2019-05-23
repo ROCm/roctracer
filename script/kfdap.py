@@ -1,7 +1,8 @@
 #!/usr/bin/python
 import os, sys, re
 
-OUT='src/core/kfd_prof_str.cpp' 
+OUT='inc/kfd_prof_str' 
+OUT_CPP='src/core/kfd_prof_str'
 API_TABLES_H = 'hsakmt.h' 
 API_HEADERS_H = ( 
   ('HSAKMTAPI', API_TABLES_H), 
@@ -301,6 +302,8 @@ class API_DescrParser:
     out_macro = re.sub(r'[\/\.]', r'_', out_file.upper()) + '_'
 
     self.content = ''
+    self.content_cpp = ''
+
     self.api_names = []
     self.api_calls = {}
     self.api_rettypes = set()
@@ -345,7 +348,6 @@ class API_DescrParser:
           # Return types
           self.api_rettypes.add(api_data[call]['ret'])
 
-    print ("HERE ", len(full_fct))
     self.api_rettypes.discard('void')
     self.api_data = api_data
     self.ns_calls = ns_calls
@@ -356,8 +358,8 @@ class API_DescrParser:
     for call in self.ns_calls:
       self.content += '// ' + call + ' was not parsed\n'
     self.content += '\n'
-    self.content += '#ifndef ' + out_macro + '\n'
-    self.content += '#define ' + out_macro + '\n'
+    self.content += '#ifndef ' + out_macro + 'H_' + '\n'
+    self.content += '#define ' + out_macro + 'H_' + '\n'
 
     self.content += '\n'
     #for incl in get_includes: NOT NEEDED
@@ -387,13 +389,18 @@ class API_DescrParser:
     self.content += '\n};};\n'
     self.content += '#endif // PROF_API_IMPL\n'
 
-    self.add_section('API output stream', '    ', self.gen_out_stream)
-    self.add_section('API output stream', '    ', self.gen_public_api)
-    self.content += '}\n'
+    self.content += '#endif // ' + out_macro + 'H_'
 
-    self.content += '\n'
+    self.content_cpp += "// automatically generated\n\n" + license + '\n'
+    self.content_cpp += "/////////////////////////////////////////////////////////////////////////////\n\n"
+    self.content_cpp += '#include \"kfd_prof_str.h\"\n'
 
-    self.content += '#endif // ' + out_macro
+    self.add_section_h('API output stream', '    ', self.gen_out_stream)
+    self.add_section_h('API output stream', '    ', self.gen_public_api)
+
+    self.content_cpp += '}\n'
+
+    self.content_cpp += '\n'
 
   # add code section
   def add_section(self, title, gap, fun):
@@ -409,6 +416,25 @@ class API_DescrParser:
         if gap == '': fun(n, name, '-', {})
         self.content += '\n'
       self.content += gap + '// block: ' + name + ' API\n'
+      for call in self.api_calls[name]:
+        fun(n, name, call, self.api_data[call])
+        n += 1
+    fun(n, '-', '-', {})
+
+
+  def add_section_h(self, title, gap, fun):
+    n = 0
+    self.content_cpp +=  '\n// section: ' + title + '\n\n'
+    fun(-1, '-', '-', {})
+    for index in range(len(self.api_names)):
+      last = (index == len(self.api_names) - 1)
+      name = self.api_names[index]
+      print ("API", name)
+
+      if n != 0:
+        if gap == '': fun(n, name, '-', {})
+        self.content_cpp += '\n'
+      self.content_cpp += gap + '// block: ' + name + ' API\n'
       for call in self.api_calls[name]:
         fun(n, name, call, self.api_data[call])
         n += 1
@@ -541,22 +567,22 @@ class API_DescrParser:
   # generate stream operator
   def gen_out_stream(self, n, name, call, struct):
     if n == -1:
-      self.content += 'typedef std::pair<uint32_t, hsa_api_data_t> hsa_api_data_pair_t;\n'
-      self.content += 'inline std::ostream& operator<< (std::ostream& out, const hsa_api_data_pair_t& data_pair) {\n'
-      self.content += '  const uint32_t cid = data_pair.first;\n'
-      self.content += '  const hsa_api_data_t& api_data = data_pair.second;\n'
-      self.content += '  switch(cid) {\n'
+      self.content_cpp += 'typedef std::pair<uint32_t, hsa_api_data_t> hsa_api_data_pair_t;\n'
+      self.content_cpp += 'inline std::ostream& operator<< (std::ostream& out, const hsa_api_data_pair_t& data_pair) {\n'
+      self.content_cpp += '  const uint32_t cid = data_pair.first;\n'
+      self.content_cpp += '  const hsa_api_data_t& api_data = data_pair.second;\n'
+      self.content_cpp += '  switch(cid) {\n'
       return
     if call != '-':
-      self.content += '    case ' + self.api_id[call] + ': {\n'
-      self.content += '      out << "' + call + '(";\n'
+      self.content_cpp += '    case ' + self.api_id[call] + ': {\n'
+      self.content_cpp += '      out << "' + call + '(";\n'
       arg_list = struct['alst']
       if len(arg_list) != 0:
         for ind in range(len(arg_list)):
           arg_var = arg_list[ind]
           arg_val = 'api_data.args.' + call + '.' + arg_var
-          self.content += '      typedef decltype(' + arg_val.replace("[]","") + ') arg_val_type_t' + str(ind) + ';\n'
-          self.content += '      roctracer::kfd_support::output_streamer<arg_val_type_t' + str(ind) + '>::put(out, ' + arg_val.replace("[]","") + ')'
+          self.content_cpp += '      typedef decltype(' + arg_val.replace("[]","") + ') arg_val_type_t' + str(ind) + ';\n'
+          self.content_cpp += '      roctracer::kfd_support::output_streamer<arg_val_type_t' + str(ind) + '>::put(out, ' + arg_val.replace("[]","") + ')'
           '''
           arg_item = struct['tlst'][ind]
           if re.search(r'\(\* ', arg_item): arg_pref = ''
@@ -569,36 +595,36 @@ class API_DescrParser:
           else:
             self.content += '      out << ' + arg_val
           '''
-          if ind < len(arg_list) - 1: self.content += ' << ", ";\n'
-          else: self.content += ';\n'
+          if ind < len(arg_list) - 1: self.content_cpp += ' << ", ";\n'
+          else: self.content_cpp += ';\n'
       if struct['ret'] != 'void':
-        self.content += '      out << ") = " << api_data.' + struct['ret'] + '_retval;\n'
+        self.content_cpp += '      out << ") = " << api_data.' + struct['ret'] + '_retval;\n'
       else:
-        self.content += '      out << ") = void";\n'
-      self.content += '      break;\n'
-      self.content += '    }\n'
+        self.content_cpp += '      out << ") = void";\n'
+      self.content_cpp += '      break;\n'
+      self.content_cpp += '    }\n'
     else:
-      self.content += '    default:\n'
-      self.content += '      out << "ERROR: unknown API";\n'
-      self.content += '      abort();\n'
-      self.content += '  }\n'
-      self.content += '  return out;\n'
-      self.content += '}\n'
-      self.content += 'inline std::ostream& operator<< (std::ostream& out, const HsaMemFlags& v) { out << "HsaMemFlags"; return out; }\n' 
+      self.content_cpp += '    default:\n'
+      self.content_cpp += '      out << "ERROR: unknown API";\n'
+      self.content_cpp += '      abort();\n'
+      self.content_cpp += '  }\n'
+      self.content_cpp += '  return out;\n'
+      self.content_cpp += '}\n'
+      self.content_cpp += 'inline std::ostream& operator<< (std::ostream& out, const HsaMemFlags& v) { out << "HsaMemFlags"; return out; }\n' 
 
 
 
   def gen_public_api(self, n, name, call, struct):
     if n == -1:
-      self.content += 'extern "C" {\n'
+      self.content_cpp += 'extern "C" {\n'
     if call != '-':
-      self.content += 'PUBLIC_API HSAKMT_STATUS ' + call + '(' + struct['args'] + ') { roctracer::kfd_support::' + call + '_callback('
+      self.content_cpp += 'PUBLIC_API HSAKMT_STATUS ' + call + '(' + struct['args'] + ') { roctracer::kfd_support::' + call + '_callback('
       for i in range(0,len(struct['alst'])):
         if i == (len(struct['alst'])-1):
-          self.content += struct['alst'][i].replace("[]","") 
+          self.content_cpp += struct['alst'][i].replace("[]","") 
         else:
-          self.content += struct['alst'][i].replace("[]","") + ', '
-      self.content +=  ');} \n'
+          self.content_cpp += struct['alst'][i].replace("[]","") + ', '
+      self.content_cpp +=  ');} \n'
 
 #############################################################
 # main
@@ -612,10 +638,17 @@ else:
 
 descr = API_DescrParser(OUT, KFD_DIR, API_TABLES_H, API_HEADERS_H, LICENSE)
 
-out_file = ROOT + OUT
+out_file = ROOT + OUT + '.h'
 print 'Generating "' + out_file + '"'
 f = open(out_file, 'w')
 f.write(descr.content[:-1])
 f.close()
+
+out_file = ROOT + OUT_CPP + '.cpp'
+print 'Generating "' + out_file + '"'
+f = open(out_file, 'w')
+f.write(descr.content_cpp[:-1])
+f.close()
+
 #############################################################
 
