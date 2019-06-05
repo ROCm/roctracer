@@ -443,7 +443,7 @@ class API_DescrParser:
   # generate API ID enumeration
   def gen_id_enum(self, n, name, call, data):
     if n == -1:
-      self.content += 'enum hsa_api_id_t {\n'
+      self.content += 'enum kfd_api_id_t {\n'
       return
     if call != '-':
       self.content += '  ' + self.api_id[call] + ' = ' + str(n) + ',\n'
@@ -459,7 +459,7 @@ class API_DescrParser:
   # generate API args structure
   def gen_arg_struct(self, n, name, call, struct):
     if n == -1:
-      self.content += 'struct hsa_api_data_t {\n'
+      self.content += 'struct kfd_api_data_t {\n'
       self.content += '  uint64_t correlation_id;\n'
       self.content += '  uint32_t phase;\n'
       self.content += '  union {\n'
@@ -490,17 +490,17 @@ class API_DescrParser:
     if call != '-':
       call_id = self.api_id[call];
       ret_type = struct['ret']
-      self.content += 'static ' + ret_type + ' ' + call + '_callback(' + struct['args'] + ') {\n'
+      self.content += ret_type + ' ' + call + '_callback(' + struct['args'] + ') {\n'  # 'static ' +
       if call == 'hsaKmtOpenKFD':
         self.content += '  if (' + name + '_saved == NULL) intercept_KFDApiTable();\n'
-      self.content += '  hsa_api_data_t api_data{};\n'
+      self.content += '  kfd_api_data_t api_data{};\n'
       for var in struct['alst']:
         self.content += '  api_data.args.' + call + '.' + var.replace("[]","") + ' = ' + var.replace("[]","") + ';\n'
       self.content += '  activity_rtapi_callback_t api_callback_fun = NULL;\n'
       self.content += '  void* api_callback_arg = NULL;\n'
       self.content += '  cb_table.get(' + call_id + ', &api_callback_fun, &api_callback_arg);\n'
       self.content += '  api_data.phase = 0;\n'
-      self.content += '  if (api_callback_fun) api_callback_fun(ACTIVITY_DOMAIN_HSA_API, ' + call_id + ', &api_data, api_callback_arg);\n'
+      self.content += '  if (api_callback_fun) api_callback_fun(ACTIVITY_DOMAIN_KFD_API, ' + call_id + ', &api_data, api_callback_arg);\n'
       if ret_type != 'void':
         self.content += '  ' + ret_type + ' ret ='
       tmp_str = '  ' + name + '_saved->' + call + '_fn(' + ', '.join(struct['alst']) + ');\n'
@@ -508,7 +508,7 @@ class API_DescrParser:
       if ret_type != 'void':
         self.content += '  api_data.' + ret_type + '_retval = ret;\n'
       self.content += '  api_data.phase = 1;\n'
-      self.content += '  if (api_callback_fun) api_callback_fun(ACTIVITY_DOMAIN_HSA_API, ' + call_id + ', &api_data, api_callback_arg);\n'
+      self.content += '  if (api_callback_fun) api_callback_fun(ACTIVITY_DOMAIN_KFD_API, ' + call_id + ', &api_data, api_callback_arg);\n'
       if ret_type != 'void':
         self.content += '  return ret;\n'
       self.content += '}\n'
@@ -567,10 +567,10 @@ class API_DescrParser:
   # generate stream operator
   def gen_out_stream(self, n, name, call, struct):
     if n == -1:
-      self.content_cpp += 'typedef std::pair<uint32_t, hsa_api_data_t> hsa_api_data_pair_t;\n'
+      self.content_cpp += 'typedef std::pair<uint32_t, kfd_api_data_t> kfd_api_data_pair_t;\n'
       self.content_cpp += 'inline std::ostream& operator<< (std::ostream& out, const hsa_api_data_pair_t& data_pair) {\n'
       self.content_cpp += '  const uint32_t cid = data_pair.first;\n'
-      self.content_cpp += '  const hsa_api_data_t& api_data = data_pair.second;\n'
+      self.content_cpp += '  const kfd_api_data_t& api_data = data_pair.second;\n'
       self.content_cpp += '  switch(cid) {\n'
       return
     if call != '-':
@@ -651,4 +651,3 @@ f.write(descr.content_cpp[:-1])
 f.close()
 
 #############################################################
-
