@@ -26,8 +26,8 @@ THE SOFTWARE.
 #include <mutex>
 
 #include <hsa.h>
-#include <hsa_api_trace.h>
-#include <hsa_ext_amd.h>
+//#include <hsa_api_trace.h>
+//#include <hsa_ext_amd.h>
 
 #include "roctracer.h"
 
@@ -75,25 +75,8 @@ struct ops_properties_t {
 
 }; // namespace kfd_support
 
-typedef kfd_support::ops_properties_t hsa_ops_properties_t;
-}; // namespace roctracer
-
-inline std::ostream& operator<< (std::ostream& out, const hsa_callback_data_t& v) { out << "<callback_data>"; return out; }
-inline std::ostream& operator<< (std::ostream &out, const hsa_signal_t& v) { out << "<signal " << std::hex << "0x" << v.handle << ">" << std::dec; return out; }
-inline std::ostream& operator<< (std::ostream &out, const hsa_signal_group_t& v) { out << "<signal_group>"; return out; }
-inline std::ostream& operator<< (std::ostream &out, const hsa_wavefront_t& v) { out << "<wavefront " << std::hex << "0x" << v.handle << ">" << std::dec; return out; }
-inline std::ostream& operator<< (std::ostream& out, const hsa_cache_t& v) { out << "<cache>"; return out; }
-inline std::ostream& operator<< (std::ostream &out, const hsa_region_t& v) { out << "<region " << std::hex << "0x" << v.handle << ">" << std::dec; return out; }
-inline std::ostream& operator<< (std::ostream& out, const hsa_amd_memory_pool_t& v) { out << "<amd_memory_pool>"; return out; }
-inline std::ostream& operator<< (std::ostream &out, const hsa_agent_t& v) { out << "<agent " << std::hex << "0x" << v.handle << ">" << std::dec; return out; }
-inline std::ostream& operator<< (std::ostream& out, const hsa_isa_t& v) { out << "<isa>"; return out; }
-inline std::ostream& operator<< (std::ostream& out, const hsa_code_symbol_t& v) { out << "<code_symbol>"; return out; }
-inline std::ostream& operator<< (std::ostream& out, const hsa_code_object_t& v) { out << "<code_object>"; return out; }
-inline std::ostream& operator<< (std::ostream& out, const hsa_code_object_reader_t& v) { out << "<code_object_reader>"; return out; }
-inline std::ostream& operator<< (std::ostream& out, const hsa_executable_symbol_t& v) { out << "<executable_symbol>"; return out; }
-inline std::ostream& operator<< (std::ostream& out, const hsa_executable_t& v) { out << "<executable>"; return out; }
-inline std::ostream& operator<< (std::ostream& out, const hsa_ext_image_t& v) { out << "<ext_image>"; return out; }
-inline std::ostream& operator<< (std::ostream& out, const hsa_ext_sampler_t& v) { out << "<ext_sampler>"; return out; }
+typedef kfd_support::ops_properties_t kfd_ops_properties_t;
+}; 
 
 namespace roctracer {
 namespace kfd_support {
