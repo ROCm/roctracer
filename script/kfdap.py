@@ -366,6 +366,7 @@ class API_DescrParser:
     #  self.content += '#include ' + incl + '\n'
 
     self.content += '#include <dlfcn.h>\n'
+    self.content += '#include <string.h>\n'
     #self.content += '#include <iostream>\n'
     self.content += '#include \"roctracer_kfd.h\"\n'
     self.content += '#include \"hsakmt.h\"\n'
@@ -380,29 +381,52 @@ class API_DescrParser:
     self.content += 'namespace roctracer {\n'
     self.content += 'namespace kfd_support {\n'
 
+    self.add_section('API get_name function', '    ', self.gen_get_name)
+    self.add_section('API get_code function', '  ', self.gen_get_code) 
+
     self.add_section('API intercepting code', '', self.gen_intercept_decl)
     self.add_section('API intercepting code', '', self.gen_intercept)
     self.add_section('API callback functions', '', self.gen_callbacks)
 
-    self.add_section('API get_name function', '    ', self.gen_get_name)
-    self.add_section('API get_code function', '  ', self.gen_get_code)
+    #self.add_section('API get_name function', '    ', self.gen_get_name)
+    #self.add_section('API get_code function', '  ', self.gen_get_code)
     self.content += '\n};};\n'
     self.content += '#endif // PROF_API_IMPL\n'
+    #self.add_section('API get_code function', '  ', self.gen_get_code)
 
-    self.content += '#endif // ' + out_macro + 'H_'
+    #self.content += '#endif // ' + out_macro + 'H_'
 
     self.content_cpp += "// automatically generated\n\n" + license + '\n'
     self.content_cpp += "/////////////////////////////////////////////////////////////////////////////\n\n"
     self.content_cpp += '#include \"kfd_prof_str.h\"\n'
 
-    self.add_section_h('API output stream', '    ', self.gen_out_stream)
-    self.add_section_h('API output stream', '    ', self.gen_public_api)
+    self.add_section('API output stream', '    ', self.gen_out_stream)
+    self.add_section_cpp('API callback fcts', '    ', self.gen_public_api)
+    self.content += '#endif // ' + out_macro + 'H_'
 
     self.content_cpp += '}\n'
 
     self.content_cpp += '\n'
 
   # add code section
+  def add_section_cpp(self, title, gap, fun):
+    n = 0
+    self.content_cpp +=  '\n// section: ' + title + '\n\n'
+    fun(-1, '-', '-', {})
+    for index in range(len(self.api_names)):
+      last = (index == len(self.api_names) - 1)
+      name = self.api_names[index]
+      print ("API", name)
+
+      if n != 0:
+        if gap == '': fun(n, name, '-', {})
+        self.content_cpp += '\n'
+      self.content_cpp += gap + '// block: ' + name + ' API\n'
+      for call in self.api_calls[name]:
+        fun(n, name, call, self.api_data[call])
+        n += 1
+    fun(n, '-', '-', {})
+
   def add_section(self, title, gap, fun):
     n = 0
     self.content +=  '\n// section: ' + title + '\n\n'
@@ -422,23 +446,6 @@ class API_DescrParser:
     fun(n, '-', '-', {})
 
 
-  def add_section_h(self, title, gap, fun):
-    n = 0
-    self.content_cpp +=  '\n// section: ' + title + '\n\n'
-    fun(-1, '-', '-', {})
-    for index in range(len(self.api_names)):
-      last = (index == len(self.api_names) - 1)
-      name = self.api_names[index]
-      print ("API", name)
-
-      if n != 0:
-        if gap == '': fun(n, name, '-', {})
-        self.content_cpp += '\n'
-      self.content_cpp += gap + '// block: ' + name + ' API\n'
-      for call in self.api_calls[name]:
-        fun(n, name, call, self.api_data[call])
-        n += 1
-    fun(n, '-', '-', {})
 
   # generate API ID enumeration
   def gen_id_enum(self, n, name, call, data):
@@ -543,7 +550,7 @@ class API_DescrParser:
   # generate API name function
   def gen_get_name(self, n, name, call, struct):
     if n == -1:
-      self.content += 'static const char* GetApiName(const uint32_t& id) {\n'
+      self.content += 'const char* GetApiName(const uint32_t& id) {\n' #static
       self.content += '  switch (id) {\n'
       return
     if call != '-':
@@ -556,7 +563,7 @@ class API_DescrParser:
   # generate API code function
   def gen_get_code(self, n, name, call, struct):
     if n == -1:
-      self.content += 'static uint32_t GetApiCode(const char* str) {\n'
+      self.content += 'uint32_t GetApiCode(const char* str) {\n' # static
       return
     if call != '-':
       self.content += '  if (strcmp("' + call + '", str) == 0) return ' + self.api_id[call] + ';\n'
@@ -567,22 +574,24 @@ class API_DescrParser:
   # generate stream operator
   def gen_out_stream(self, n, name, call, struct):
     if n == -1:
-      self.content_cpp += 'typedef std::pair<uint32_t, kfd_api_data_t> kfd_api_data_pair_t;\n'
-      self.content_cpp += 'inline std::ostream& operator<< (std::ostream& out, const hsa_api_data_pair_t& data_pair) {\n'
-      self.content_cpp += '  const uint32_t cid = data_pair.first;\n'
-      self.content_cpp += '  const kfd_api_data_t& api_data = data_pair.second;\n'
-      self.content_cpp += '  switch(cid) {\n'
+      self.content += 'typedef std::pair<uint32_t, kfd_api_data_t> kfd_api_data_pair_t;\n'
+      self.content += 'inline std::ostream& operator<< (std::ostream& out, const kfd_api_data_pair_t& data_pair) {\n'
+      self.content += '  const uint32_t cid = data_pair.first;\n'
+      self.content += '  const kfd_api_data_t& api_data = data_pair.second;\n'
+      self.content += '  switch(cid) {\n'
       return
     if call != '-':
-      self.content_cpp += '    case ' + self.api_id[call] + ': {\n'
-      self.content_cpp += '      out << "' + call + '(";\n'
+      self.content += '    case ' + self.api_id[call] + ': {\n'
+      self.content += '      out << "' + call + '(";\n'
       arg_list = struct['alst']
       if len(arg_list) != 0:
         for ind in range(len(arg_list)):
           arg_var = arg_list[ind]
           arg_val = 'api_data.args.' + call + '.' + arg_var
-          self.content_cpp += '      typedef decltype(' + arg_val.replace("[]","") + ') arg_val_type_t' + str(ind) + ';\n'
-          self.content_cpp += '      roctracer::kfd_support::output_streamer<arg_val_type_t' + str(ind) + '>::put(out, ' + arg_val.replace("[]","") + ')'
+          if re.search(r'MemFlags',arg_var): #WIP
+            continue 
+          self.content += '      typedef decltype(' + arg_val.replace("[]","") + ') arg_val_type_t' + str(ind) + ';\n'
+          self.content += '      roctracer::kfd_support::output_streamer<arg_val_type_t' + str(ind) + '>::put(out, ' + arg_val.replace("[]","") + ')'
           '''
           arg_item = struct['tlst'][ind]
           if re.search(r'\(\* ', arg_item): arg_pref = ''
@@ -595,28 +604,36 @@ class API_DescrParser:
           else:
             self.content += '      out << ' + arg_val
           '''
-          if ind < len(arg_list) - 1: self.content_cpp += ' << ", ";\n'
-          else: self.content_cpp += ';\n'
+          if ind < len(arg_list) - 1: self.content += ' << ", ";\n'
+          else: self.content += ';\n'
       if struct['ret'] != 'void':
-        self.content_cpp += '      out << ") = " << api_data.' + struct['ret'] + '_retval;\n'
+        self.content += '      out << ") = " << api_data.' + struct['ret'] + '_retval;\n'
       else:
-        self.content_cpp += '      out << ") = void";\n'
-      self.content_cpp += '      break;\n'
-      self.content_cpp += '    }\n'
+        self.content += '      out << ") = void";\n'
+      self.content += '      break;\n'
+      self.content += '    }\n'
     else:
-      self.content_cpp += '    default:\n'
-      self.content_cpp += '      out << "ERROR: unknown API";\n'
-      self.content_cpp += '      abort();\n'
-      self.content_cpp += '  }\n'
-      self.content_cpp += '  return out;\n'
-      self.content_cpp += '}\n'
+      self.content += '    default:\n'
+      self.content += '      out << "ERROR: unknown API";\n'
+      self.content += '      abort();\n'
+      self.content += '  }\n'
+      self.content += '  return out;\n'
+      self.content += '}\n'  
       self.content_cpp += 'inline std::ostream& operator<< (std::ostream& out, const HsaMemFlags& v) { out << "HsaMemFlags"; return out; }\n' 
-
 
 
   def gen_public_api(self, n, name, call, struct):
     if n == -1:
       self.content_cpp += 'extern "C" {\n'
+      self.content_cpp += 'PUBLIC_API bool RegisterApiCallback(uint32_t op, void* callback, void* user_data) {\n';
+      self.content_cpp += '    roctracer::kfd_support::cb_table.set(op, reinterpret_cast<activity_rtapi_callback_t>(callback), user_data);\n';
+      self.content_cpp += '    return true;\n';
+      self.content_cpp += '}\n';
+      self.content_cpp += 'PUBLIC_API bool RemoveApiCallback(uint32_t op) {\n'
+      self.content_cpp += '    roctracer::kfd_support::cb_table.set(op, NULL, NULL);\n';
+      self.content_cpp += '    return true;\n';
+      self.content_cpp += '}\n\n';
+
     if call != '-':
       self.content_cpp += 'PUBLIC_API HSAKMT_STATUS ' + call + '(' + struct['args'] + ') { roctracer::kfd_support::' + call + '_callback('
       for i in range(0,len(struct['alst'])):
