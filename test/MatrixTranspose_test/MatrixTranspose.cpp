@@ -24,6 +24,7 @@ THE SOFTWARE.
 
 // hip header file
 #include <hip/hip_runtime.h>
+#include <inc/kfd_prof_str.h>
 
 #ifndef ITERATIONS
 # define ITERATIONS 100
@@ -154,6 +155,36 @@ int main() {
     }                                                                                              \
   } while (0)
 
+// Runtime KFD callback function
+void kfd_api_callback(
+    uint32_t domain,
+    uint32_t cid,
+    const void* callback_data,
+    void* arg)
+{
+
+  (void)arg;
+  const kfd_api_data_t* data = reinterpret_cast<const kfd_api_data_t*>(callback_data);
+  fprintf(stdout, "<%s id(%u)\tcorrelation_id(%lu) %s> ",
+    roctracer_op_string(ACTIVITY_DOMAIN_KFD_API, cid, 0),
+    cid,
+    data->correlation_id,
+    (data->phase == ACTIVITY_API_PHASE_ENTER) ? "on-enter" : "on-exit");
+  if (data->phase == ACTIVITY_API_PHASE_ENTER) {
+     std::cout << kfd_api_data_pair_t(cid, *data) << std::endl;
+  } else {
+    switch (cid) {
+      case KFD_API_ID_hsaKmtAllocMemory:
+        fprintf(stdout, "*MemoryAddress(0x%p)",
+          *(data->args.hsaKmtAllocMemory.MemoryAddress));
+        break;
+      default:
+        break;
+    }
+  }
+  fprintf(stdout, "\n"); fflush(stdout);
+}
+
 // Runtime API callback function
 void api_callback(
     uint32_t domain,
@@ -255,10 +286,7 @@ void init_tracing() {
 // Start tracing routine
 void start_tracing() {
   std::cout << "# START #############################" << std::endl << std::flush;
-  // Enable HIP API callbacks
-  ROCTRACER_CALL(roctracer_enable_callback(api_callback, NULL));
-  // Enable HIP activity tracing
-  ROCTRACER_CALL(roctracer_enable_activity());
+  ROCTRACER_CALL(roctracer_enable_domain_callback(ACTIVITY_DOMAIN_KFD_API, kfd_api_callback, NULL));
 }
 
 // Stop tracing routine
