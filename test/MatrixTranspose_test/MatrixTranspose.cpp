@@ -24,7 +24,9 @@ THE SOFTWARE.
 
 // hip header file
 #include <hip/hip_runtime.h>
+#ifdef ENABLE_KFD
 #include <inc/kfd_prof_str.h>
+#endif
 
 #ifndef ITERATIONS
 # define ITERATIONS 100
@@ -156,6 +158,7 @@ int main() {
   } while (0)
 
 // Runtime KFD callback function
+#ifdef ENABLE_KFD
 void kfd_api_callback(
     uint32_t domain,
     uint32_t cid,
@@ -184,6 +187,7 @@ void kfd_api_callback(
   }
   fprintf(stdout, "\n"); fflush(stdout);
 }
+#endif
 
 // Runtime API callback function
 void api_callback(
@@ -286,7 +290,14 @@ void init_tracing() {
 // Start tracing routine
 void start_tracing() {
   std::cout << "# START #############################" << std::endl << std::flush;
+#ifdef ENABLE_KFD
   ROCTRACER_CALL(roctracer_enable_domain_callback(ACTIVITY_DOMAIN_KFD_API, kfd_api_callback, NULL));
+#else
+  // Enable HIP API callbacks
+  ROCTRACER_CALL(roctracer_enable_callback(api_callback, NULL));
+  // Enable HIP activity tracing
+  ROCTRACER_CALL(roctracer_enable_activity());
+#endif
 }
 
 // Stop tracing routine
