@@ -522,7 +522,7 @@ class API_DescrParser:
 
   def gen_intercept_decl(self, n, name, call, struct):
     if n > 0 and call == '-':
-      self.content += '} HSAKMTAPI_saved_t;\n'
+      self.content += '} HSAKMTAPI_table;\n'
     if n == 0 or (call == '-' and name != '-'):
       self.content += 'typedef struct {\n'
     if call != '-':
