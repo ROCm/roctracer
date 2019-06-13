@@ -30,8 +30,10 @@ THE SOFTWARE.
 #include <inc/roctracer_hsa.h>
 #include <inc/roctracer_hip.h>
 #include <inc/roctracer_hcc.h>
+#ifdef ENABLE_KFD
 #include <inc/roctracer_kfd.h>
 #include <inc/kfd_prof_str.h>
+#endif
 #include <inc/ext/hsa_rt_utils.hpp>
 //#include <inc/ext/prof_protocol.h>
 #include <src/core/loader.h>
@@ -56,10 +58,13 @@ typedef hsa_rt_utils::Timer::timestamp_t timestamp_t;
 hsa_rt_utils::Timer* timer = NULL;
 thread_local timestamp_t hsa_begin_timestamp = 0;
 thread_local timestamp_t hip_begin_timestamp = 0;
+#ifdef ENABLE_KFD
 thread_local timestamp_t kfd_begin_timestamp = 0;
+bool trace_kfd = false;
+FILE* kfd_api_file_handle = NULL;
+#endif
 bool trace_hsa = false;
 bool trace_hip = false;
-bool trace_kfd = false;
 
 LOADER_INSTANTIATE();
 
@@ -68,7 +73,6 @@ FILE* hsa_api_file_handle = NULL;
 FILE* hsa_async_copy_file_handle = NULL;
 FILE* hip_api_file_handle = NULL;
 FILE* hcc_activity_file_handle = NULL;
-FILE* kfd_api_file_handle = NULL;
 
 static inline uint32_t GetPid() { return syscall(__NR_getpid); }
 static inline uint32_t GetTid() { return syscall(__NR_gettid); }
@@ -79,7 +83,9 @@ void fatal(const std::string msg) {
   fflush(hsa_async_copy_file_handle);
   fflush(hip_api_file_handle);
   fflush(hcc_activity_file_handle);
+#ifdef ENABLE_KFD
   fflush(kfd_api_file_handle);
+#endif
   fflush(stdout);
   fprintf(stderr, "%s\n\n", msg.c_str());
   fflush(stderr);
@@ -87,7 +93,7 @@ void fatal(const std::string msg) {
 }
 
 // KFD API callback function
-
+#ifdef ENABLE_KFD
 void kfd_api_callback(
     uint32_t domain,
     uint32_t cid,
@@ -106,6 +112,7 @@ void kfd_api_callback(
     fprintf(kfd_api_file_handle, "%s\n", os.str().c_str());
   }
 }
+#endif
 
 // HSA API callback function
 void hsa_api_callback(
@@ -279,7 +286,9 @@ extern "C" PUBLIC_API bool OnLoad(HsaApiTable* table, uint64_t runtime_version, 
   const char* trace_domain = getenv("ROCTRACER_DOMAIN");
   trace_hsa = (trace_domain == NULL) || (strncmp(trace_domain, "hsa", 3) == 0);
   trace_hip = (trace_domain == NULL) || (strncmp(trace_domain, "hip", 3) == 0);
+#ifdef ENABLE_KFD
   trace_kfd = (trace_domain == NULL) || (strncmp(trace_domain, "kfd", 3) == 0);
+#endif
 
   // Output file
   const char* output_prefix = getenv("ROCP_OUTPUT_DIR");
@@ -295,7 +304,9 @@ extern "C" PUBLIC_API bool OnLoad(HsaApiTable* table, uint64_t runtime_version, 
 
   // API trace vector
   std::vector<std::string> hsa_api_vec;
+#ifdef ENABLE_KFD
   std::vector<std::string> kfd_api_vec;
+#endif
 
   printf("ROCTracer: "); fflush(stdout);
   // XML input
@@ -325,13 +336,13 @@ extern "C" PUBLIC_API bool OnLoad(HsaApiTable* table, uint64_t runtime_version, 
         trace_hsa |= true;
         hsa_api_vec = api_vec;
       }
-
+#ifdef ENABLE_KFD
       if (name == "KFD") {
         found = true;
         trace_kfd |= true;
         hsa_api_vec = api_vec;
       }
-
+#endif
       if (name == "HIP") {
         found = true;
         trace_hip |= true;
@@ -369,7 +380,7 @@ extern "C" PUBLIC_API bool OnLoad(HsaApiTable* table, uint64_t runtime_version, 
     ROCTRACER_CALL(roctracer_enable_domain_activity(ACTIVITY_DOMAIN_HSA_OPS));
     printf(")\n");
   }
-
+#ifdef ENABLE_KFD
   if (trace_kfd) {
     kfd_api_file_handle = open_output_file(output_prefix, "kfd_api_trace.txt");
     // initialize KFD tracing
@@ -389,6 +400,7 @@ extern "C" PUBLIC_API bool OnLoad(HsaApiTable* table, uint64_t runtime_version, 
     }
     printf(")\n");
   }
+#endif
   // Enable HIP API callbacks/activity
   if (trace_hip) {
     hip_api_file_handle = open_output_file(output_prefix, "hip_api_trace.txt");
@@ -427,9 +439,10 @@ extern "C" PUBLIC_API void OnUnload() {
     fclose(hip_api_file_handle);
     fclose(hcc_activity_file_handle);
   }
+#ifdef ENABLE_KFD
   if (trace_kfd) {
     ROCTRACER_CALL(roctracer_disable_domain_callback(ACTIVITY_DOMAIN_KFD_API));
     fclose(kfd_api_file_handle);
   }
-
+#endif
 }
