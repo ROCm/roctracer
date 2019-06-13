@@ -1,8 +1,8 @@
 #!/usr/bin/python
 import os, sys, re
 
-OUT='inc/kfd_prof_str' 
-OUT_CPP='src/core/kfd_prof_str'
+OUT='inc/kfd_wrapper' 
+OUT_CPP='src/core/kfd_wrapper'
 API_TABLES_H = 'hsakmt.h' 
 API_HEADERS_H = ( 
   ('HSAKMTAPI', API_TABLES_H), 
@@ -398,7 +398,7 @@ class API_DescrParser:
 
     self.content_cpp += "// automatically generated\n\n" + license + '\n'
     self.content_cpp += "/////////////////////////////////////////////////////////////////////////////\n\n"
-    self.content_cpp += '#include \"kfd_prof_str.h\"\n'
+    self.content_cpp += '#include \"kfd_wrapper.h\"\n'
 
     self.add_section('API output stream', '    ', self.gen_out_stream)
     self.add_section_cpp('API callback fcts', '    ', self.gen_public_api)
