@@ -25,7 +25,8 @@
 # enable tools load failure reporting
 export HSA_TOOLS_REPORT_LOAD_FAILURE=1
 # paths to ROC profiler and oher libraries
-export LD_LIBRARY_PATH=$PWD
+export LD_LIBRARY_PATH=$PWD:$KMTLIB_DIR
+#/home/rachida/work/libhsakmt/hsakmt
 # test check routin
 test_status=0
 test_number=0
@@ -42,6 +43,11 @@ eval_test() {
   fi
   test_number=$(($test_number + 1))
 }
+
+export ROCTRACER_DOMAIN="kfd"
+
+#KFD
+eval_test "standalone KFD test" "LD_PRELOAD=/home/rachida/work/libhsakmt/hsakmt/inject.so ./test/MatrixTranspose_test"
 
 # Standalone test
 # rocTrecer is used explicitely by test
@@ -74,6 +80,13 @@ eval_test "tool HSA test" "LD_PRELOAD='$HSA_TOOLS_LIB' ./test/hsa/ctrl"
 echo "<trace name=\"HSA\"><parameters api=\"hsa_agent_get_info, hsa_amd_memory_pool_allocate\"></parameters></trace>" > input.xml
 export ROCP_INPUT=input.xml
 eval_test "tool HSA test input" "LD_PRELOAD='$HSA_TOOLS_LIB' ./test/hsa/ctrl"
+
+eval_test "tool HSA test" "LD_PRELOAD='$HSA_TOOLS_LIB' ./test/hsa/ctrl"
+
+echo "<trace name=\"HSA\"><parameters api=\"hsa_agent_get_info, hsa_amd_mem  ory_pool_allocate\"></parameters></trace>" > input.xml
+export ROCP_INPUT=input.xml
+eval_test "tool HSA test input" "LD_PRELOAD='$HSA_TOOLS_LIB' ./test/hsa/ctrl" 
+
 
 #valgrind --leak-check=full $tbin
 #valgrind --tool=massif $tbin
