@@ -53,6 +53,9 @@ eval_test "standalone KFD test" "LD_PRELOAD=/home/rachida/work/libhsakmt/hsakmt/
 # rocTrecer is used explicitely by test
 eval_test "standalone HIP test" "LD_PRELOAD=$HCC_HOME/lib/libmcwamp_hsa.so ./test/MatrixTranspose_test"
 
+# KFD implicit test
+eval_test "tool KFD implicit test" "LD_PRELOAD='$HCC_HOME/lib/libmcwamp_hsa.so $HSA_TOOLS_LIB /home/rachida/work/libhsakmt/hsakmt/inject.so' ./test/MatrixTranspose"
+
 # Tool test
 # rocTracer/tool is loaded by HSA runtime
 export HSA_TOOLS_LIB="test/libtracer_tool.so libroctracer64.so"
