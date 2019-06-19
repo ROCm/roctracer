@@ -95,7 +95,6 @@ void kfd_api_callback(
 {
   (void)arg;
   const kfd_api_data_t* data = reinterpret_cast<const kfd_api_data_t*>(callback_data);
-
   if (data->phase == ACTIVITY_API_PHASE_ENTER) {
     kfd_begin_timestamp = timer->timestamp_fn_ns();
   } else {
@@ -377,11 +376,11 @@ extern "C" PUBLIC_API bool OnLoad(HsaApiTable* table, uint64_t runtime_version, 
         uint32_t cid = KFD_API_ID_NUMBER;
         const char* api = kfd_api_vec[i].c_str();
         ROCTRACER_CALL(roctracer_op_code(ACTIVITY_DOMAIN_KFD_API, api, &cid));
-        ROCTRACER_CALL(roctracer_enable_op_callback(ACTIVITY_DOMAIN_KFD_API, cid, hsa_api_callback, NULL));
+        ROCTRACER_CALL(roctracer_enable_op_callback(ACTIVITY_DOMAIN_KFD_API, cid, kfd_api_callback, NULL));
         printf(" %s", api);
       }
     } else {
-      ROCTRACER_CALL(roctracer_enable_domain_callback(ACTIVITY_DOMAIN_KFD_API, hsa_api_callback, NULL));
+      ROCTRACER_CALL(roctracer_enable_domain_callback(ACTIVITY_DOMAIN_KFD_API, kfd_api_callback, NULL));
     }
     printf(")\n");
   }
