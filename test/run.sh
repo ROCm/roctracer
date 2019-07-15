@@ -25,7 +25,7 @@
 # enable tools load failure reporting
 export HSA_TOOLS_REPORT_LOAD_FAILURE=1
 # paths to ROC profiler and oher libraries
-export LD_LIBRARY_PATH=$PWD:$KMTLIB_DIR
+export LD_LIBRARY_PATH=$PWD
 #/home/rachida/work/libhsakmt/hsakmt
 # test check routin
 test_status=0
@@ -54,17 +54,17 @@ eval_test "standalone KFD test" "LD_PRELOAD=/home/rachida/work/libhsakmt/hsakmt/
 eval_test "standalone HIP test" "LD_PRELOAD=$HCC_HOME/lib/libmcwamp_hsa.so ./test/MatrixTranspose_test"
 
 # KFD implicit test
-eval_test "tool KFD implicit test" "LD_PRELOAD='$HCC_HOME/lib/libmcwamp_hsa.so $HSA_TOOLS_LIB /home/rachida/work/libhsakmt/hsakmt/inject.so' ./test/MatrixTranspose"
+eval_test "tool KFD implicit test" "LD_PRELOAD='$HCC_HOME/lib/libmcwamp_hsa.so /home/rachida/work/libhsakmt/hsakmt/inject.so' ./test/MatrixTranspose"
 
 # Tool test
 # rocTracer/tool is loaded by HSA runtime
 export HSA_TOOLS_LIB="test/libtracer_tool.so libroctracer64.so"
-
 # HIP test
 eval_test "tool HIP test" "LD_PRELOAD='$HCC_HOME/lib/libmcwamp_hsa.so $HSA_TOOLS_LIB' ./test/MatrixTranspose"
 
 # HSA test
 export ROCTRACER_DOMAIN="hsa"
+
 # test trace
 export ROC_TEST_TRACE=1
 # kernels loading iterations
@@ -89,11 +89,6 @@ eval_test "tool HSA test" "LD_PRELOAD='$HSA_TOOLS_LIB' ./test/hsa/ctrl"
 echo "<trace name=\"HSA\"><parameters api=\"hsa_agent_get_info, hsa_amd_mem  ory_pool_allocate\"></parameters></trace>" > input.xml
 export ROCP_INPUT=input.xml
 eval_test "tool HSA test input" "LD_PRELOAD='$HSA_TOOLS_LIB' ./test/hsa/ctrl" 
-
-
-#valgrind --leak-check=full $tbin
-#valgrind --tool=massif $tbin
-#ms_print massif.out.<N>
-
 echo "$test_number tests total / $test_status tests failed"
 exit $test_status
+
