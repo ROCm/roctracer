@@ -3,10 +3,8 @@ import os, sys, re
 
 OUT='inc/kfd_wrapper' 
 OUT_CPP='src/core/kfd_wrapper'
-API_TABLES_H = 'hsakmt.h' 
 API_HEADERS_H = ( 
-  ('HSAKMTAPI', API_TABLES_H), 
-  ('HSAKMTAPI', API_TABLES_H),
+  ('HSAKMTAPI', 'hsakmt.h'), 
 )
 
 LICENSE = \
@@ -170,20 +168,12 @@ class API_DeclParser:
       print("calling parse 2");
       self.parse(call,full_fct,get_includes)
 
-  # api record filter
-  #def api_filter(self, record):
-    #record = re.sub(r'\sKFD_API\s', r' ', record)
-    #record = re.sub(r'\sKFD_DEPRECATED\s', r' ', record)
-    #return record
-
   # check for start record
   def is_start(self, call, record):
     return re.search('\s*' + call + '\s*\(', record)
 
   # check for API method record
   def is_api(self, call, record):
-    #record = self.api_filter(record)
-    #return re.match('\s+\S+\s+' + call + '\s*\(', record)
     return re.match('\s*' + call + '\s*\(', record)
 
 
@@ -243,9 +233,6 @@ class API_DeclParser:
 
     return struct
 
-  #def is_mycall(self, record):
-  #  return re.match(r'^\s*(.*)\s*\((.*)\)', record)
-
   # parse given api
   def parse(self, call, full_fct,get_includes):
     print ("CALL, full_fct length", call, len(full_fct));
@@ -253,10 +240,6 @@ class API_DeclParser:
       self.data[call] = self.get_args(full_fct[call])
     else:
       self.data[call] = self.get_args(call)
-
-    #m = self.is_mycall(call)
-    #if m:
-      #self.data[call]=m.group(2)
 
   # parse given api
   def parse_old(self, call):
@@ -298,7 +281,7 @@ class API_DescrParser:
   def fatal(self, msg):
     fatal('API_DescrParser', msg)
 
-  def __init__(self, out_file, kfd_dir, api_table_h, api_headers, license):
+  def __init__(self, out_file, kfd_dir, api_headers, license):
     out_macro = re.sub(r'[\/\.]', r'_', out_file.upper()) + '_'
 
     self.content = ''
@@ -315,11 +298,11 @@ class API_DescrParser:
     api_list = []
     ns_calls = []
 
-    for i in range(0, len(api_headers)):
-      (name, header) = api_headers[i]
+    for i in range(0, 1):
+      (name, header) = api_headers[0]
       
-      if i < len(api_headers) - 1: 
-        api = API_TableParser(kfd_dir + api_table_h, name, full_fct, get_includes)
+      if i < 1:
+        api = API_TableParser(kfd_dir + header, name, full_fct, get_includes)
         full_fct = api.full_fct
         get_includes = api.get_includes
         print ("SIZE", len(full_fct))
@@ -362,12 +345,9 @@ class API_DescrParser:
     self.content += '#define ' + out_macro + 'H_' + '\n'
 
     self.content += '\n'
-    #for incl in get_includes: NOT NEEDED
-    #  self.content += '#include ' + incl + '\n'
 
     self.content += '#include <dlfcn.h>\n'
     self.content += '#include <string.h>\n'
-    #self.content += '#include <iostream>\n'
     self.content += '#include \"roctracer_kfd.h\"\n'
     self.content += '#include \"hsakmt.h\"\n'
 
@@ -388,13 +368,8 @@ class API_DescrParser:
     self.add_section('API intercepting code', '', self.gen_intercept)
     self.add_section('API callback functions', '', self.gen_callbacks)
 
-    #self.add_section('API get_name function', '    ', self.gen_get_name)
-    #self.add_section('API get_code function', '  ', self.gen_get_code)
     self.content += '\n};};\n'
     self.content += '#endif // PROF_API_IMPL\n'
-    #self.add_section('API get_code function', '  ', self.gen_get_code)
-
-    #self.content += '#endif // ' + out_macro + 'H_'
 
     self.content_cpp += "// automatically generated\n\n" + license + '\n'
     self.content_cpp += "/////////////////////////////////////////////////////////////////////////////\n\n"
@@ -522,14 +497,11 @@ class API_DescrParser:
 
   def gen_intercept_decl(self, n, name, call, struct):
     if n > 0 and call == '-':
-      self.content += '} HSAKMTAPI_table;\n'
+      self.content += '} HSAKMTAPI_table_t;\n'
     if n == 0 or (call == '-' and name != '-'):
       self.content += 'typedef struct {\n'
     if call != '-':
-      if call != 'hsa_shut_down':
-        self.content += '  decltype(' + call + ')* ' + call + '_fn;\n'
-      else: # Unused
-        self.content += '  { void* p = (void*)' + call + '_callback; (void)p; }\n'
+      self.content += '  decltype(' + call + ')* ' + call + '_fn;\n'
 
   # generate API intercepting code
   def gen_intercept(self, n, name, call, struct):
@@ -541,11 +513,8 @@ class API_DescrParser:
       self.content += '  ' + name + '_saved = new ' + name + '_saved_t{}' + ';\n'
 
     if call != '-':
-      if call != 'hsa_shut_down':
-        self.content += '  typedef decltype(' + name + '_saved_t::' + call + '_fn) ' + call + '_t;\n'
-        self.content += '  ' + name + '_saved->' + call + '_fn = (' + call + '_t)' + 'dlsym(RTLD_NEXT,\"'  + call + '\");\n' 
-      else: 
-        self.content += '  { void* p = (void*)' + call + '_callback; (void)p; }\n'
+      self.content += '  typedef decltype(' + name + '_saved_t::' + call + '_fn) ' + call + '_t;\n'
+      self.content += '  ' + name + '_saved->' + call + '_fn = (' + call + '_t)' + 'dlsym(RTLD_NEXT,\"'  + call + '\");\n' 
 
   # generate API name function
   def gen_get_name(self, n, name, call, struct):
@@ -653,7 +622,7 @@ else:
   ROOT = sys.argv[1] + '/'
   KFD_DIR = sys.argv[2] + '/'
 
-descr = API_DescrParser(OUT, KFD_DIR, API_TABLES_H, API_HEADERS_H, LICENSE)
+descr = API_DescrParser(OUT, KFD_DIR, API_HEADERS_H, LICENSE)
 
 out_file = ROOT + OUT + '.h'
 print 'Generating "' + out_file + '"'
