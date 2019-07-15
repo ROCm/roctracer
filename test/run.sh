@@ -44,9 +44,8 @@ eval_test() {
   test_number=$(($test_number + 1))
 }
 
-export ROCTRACER_DOMAIN="kfd"
-
 #KFD
+export ROCTRACER_DOMAIN="kfd"
 eval_test "standalone KFD test" "LD_PRELOAD=/home/rachida/work/libhsakmt/hsakmt/inject.so ./test/MatrixTranspose_test"
 
 # Standalone test
