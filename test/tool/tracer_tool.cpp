@@ -57,10 +57,10 @@ hsa_rt_utils::Timer* timer = NULL;
 thread_local timestamp_t hsa_begin_timestamp = 0;
 thread_local timestamp_t hip_begin_timestamp = 0;
 thread_local timestamp_t kfd_begin_timestamp = 0;
-bool trace_kfd = false;
 FILE* kfd_api_file_handle = NULL;
 bool trace_hsa = false;
 bool trace_hip = false;
+bool trace_kfd = false;
 
 LOADER_INSTANTIATE();
 
