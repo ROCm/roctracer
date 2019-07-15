@@ -286,14 +286,22 @@ void init_tracing() {
 // Start tracing routine
 void start_tracing() {
   std::cout << "# START #############################" << std::endl << std::flush;
+  bool found_domain = 0;
   const char* trace_domain = getenv("ROCTRACER_DOMAIN"); 
   if (strncmp(trace_domain, "kfd", 3) == 0) {
     ROCTRACER_CALL(roctracer_enable_domain_callback(ACTIVITY_DOMAIN_KFD_API, kfd_api_callback, NULL));
-  } else {
+    found_domain = 1;
+  } 
+  if (strncmp(trace_domain, "hip", 3) == 0) {
     // Enable HIP API callbacks
     ROCTRACER_CALL(roctracer_enable_callback(api_callback, NULL));
     // Enable HIP activity tracing
     ROCTRACER_CALL(roctracer_enable_activity());
+    found_domain = 1;
+  } 
+  if (!found_domain) {
+     printf("FAILED: %s domain not supported\n", trace_domain);
+     abort();
   }
 }
 
