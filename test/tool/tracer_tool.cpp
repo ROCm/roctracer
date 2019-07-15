@@ -57,7 +57,7 @@ hsa_rt_utils::Timer* timer = NULL;
 thread_local timestamp_t hsa_begin_timestamp = 0;
 thread_local timestamp_t hip_begin_timestamp = 0;
 thread_local timestamp_t kfd_begin_timestamp = 0;
-FILE* kfd_api_file_handle = NULL;
+
 bool trace_hsa = false;
 bool trace_hip = false;
 bool trace_kfd = false;
@@ -69,6 +69,7 @@ FILE* hsa_api_file_handle = NULL;
 FILE* hsa_async_copy_file_handle = NULL;
 FILE* hip_api_file_handle = NULL;
 FILE* hcc_activity_file_handle = NULL;
+FILE* kfd_api_file_handle = NULL;
 
 static inline uint32_t GetPid() { return syscall(__NR_getpid); }
 static inline uint32_t GetTid() { return syscall(__NR_gettid); }
