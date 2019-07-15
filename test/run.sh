@@ -83,11 +83,6 @@ echo "<trace name=\"HSA\"><parameters api=\"hsa_agent_get_info, hsa_amd_memory_p
 export ROCP_INPUT=input.xml
 eval_test "tool HSA test input" "LD_PRELOAD='$HSA_TOOLS_LIB' ./test/hsa/ctrl"
 
-eval_test "tool HSA test" "LD_PRELOAD='$HSA_TOOLS_LIB' ./test/hsa/ctrl"
-
-echo "<trace name=\"HSA\"><parameters api=\"hsa_agent_get_info, hsa_amd_mem  ory_pool_allocate\"></parameters></trace>" > input.xml
-export ROCP_INPUT=input.xml
-eval_test "tool HSA test input" "LD_PRELOAD='$HSA_TOOLS_LIB' ./test/hsa/ctrl" 
 echo "$test_number tests total / $test_status tests failed"
 exit $test_status
 
