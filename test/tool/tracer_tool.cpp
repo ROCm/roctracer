@@ -184,7 +184,6 @@ void hip_api_callback(
   }
 }
 
-
 // Activity tracing callback
 //   hipMalloc id(3) correlation_id(1): begin_ns(1525888652762640464) end_ns(1525888652762877067)
 void hcc_activity_callback(const char* begin, const char* end, void* arg) {
