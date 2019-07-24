@@ -149,7 +149,7 @@ class API_TableParser:
           self.array.append(mycall) 
 
 #############################################################
-# APIaKmtGetNodePropertiesdeclaration parser class
+# API declaration parser class
 class API_DeclParser:
   def fatal(self, msg):
     fatal('API_DeclParser', msg)
