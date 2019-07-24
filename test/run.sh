@@ -85,4 +85,3 @@ eval_test "tool HSA test input" "LD_PRELOAD='$HSA_TOOLS_LIB' ./test/hsa/ctrl"
 
 echo "$test_number tests total / $test_status tests failed"
 exit $test_status
-
