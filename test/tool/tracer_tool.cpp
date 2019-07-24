@@ -327,7 +327,7 @@ extern "C" PUBLIC_API bool OnLoad(HsaApiTable* table, uint64_t runtime_version, 
       if (name == "KFD") {
         found = true;
         trace_kfd |= true;
-        hsa_api_vec = api_vec;
+        kfd_api_vec = api_vec;
       }
       if (name == "HIP") {
         found = true;
