@@ -165,7 +165,6 @@ class API_DeclParser:
     for call in array:
       if call in data:
         self.fatal(call + ' is already found')
-      print("calling parse 2");
       self.parse(call,full_fct,get_includes)
 
   # check for start record
