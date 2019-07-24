@@ -170,18 +170,7 @@ void kfd_api_callback(
     cid,
     data->correlation_id,
     (data->phase == ACTIVITY_API_PHASE_ENTER) ? "on-enter" : "on-exit");
-  if (data->phase == ACTIVITY_API_PHASE_ENTER) {
-     std::cout << kfd_api_data_pair_t(cid, *data) << std::endl;
-  } else {
-    switch (cid) {
-      case KFD_API_ID_hsaKmtAllocMemory:
-        fprintf(stdout, "*MemoryAddress(0x%p)",
-          *(data->args.hsaKmtAllocMemory.MemoryAddress));
-        break;
-      default:
-        break;
-    }
-  }
+  std::cout << kfd_api_data_pair_t(cid, *data) << std::endl;
   fprintf(stdout, "\n"); fflush(stdout);
 }
 
