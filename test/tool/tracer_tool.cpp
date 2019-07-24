@@ -33,7 +33,6 @@ THE SOFTWARE.
 #include <inc/roctracer_kfd.h>
 #include <inc/kfd_prof_str.h>
 #include <inc/ext/hsa_rt_utils.hpp>
-//#include <inc/ext/prof_protocol.h>
 #include <src/core/loader.h>
 #include <util/xml.h>
 
