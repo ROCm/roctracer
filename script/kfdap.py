@@ -73,10 +73,10 @@ class API_TableParser:
   def fatal(self, msg):
     fatal('API_TableParser', msg)
 
-  def __init__(self, header, name, full_fct, get_includes):
+  def __init__(self, header, name, full_fct, includes_list):
     self.name = name
     self.full_fct = full_fct
-    self.get_includes = get_includes
+    self.includes_list = includes_list
 
     if not os.path.isfile(header):
       self.fatal("file '" + header + "' not found")
@@ -121,13 +121,13 @@ class API_TableParser:
     record = "";
     cumulate = 0;
     self.full_fct = {}
-    self.get_includes = []
+    self.includes_list = []
     for line in self.inp.readlines():
       print ("LINE before", line)
       m = self.is_include(line)
       if m:
           print ("INCLUDE, FILE", line,m.group(1))
-          self.get_includes.append(m.group(1))
+          self.includes_list.append(m.group(1))
       line = self.norm_line(line)
       line = self.fix_comment_line(line)
 
@@ -154,7 +154,7 @@ class API_DeclParser:
   def fatal(self, msg):
     fatal('API_DeclParser', msg)
 
-  def __init__(self, header, array, data, full_fct, get_includes):
+  def __init__(self, header, array, data, full_fct, includes_list):
     if not os.path.isfile(header):
       self.fatal("file '" + header + "' not found")
 
@@ -165,7 +165,7 @@ class API_DeclParser:
     for call in array:
       if call in data:
         self.fatal(call + ' is already found')
-      self.parse(call,full_fct,get_includes)
+      self.parse(call,full_fct,includes_list)
 
   # check for start record
   def is_start(self, call, record):
@@ -233,7 +233,7 @@ class API_DeclParser:
     return struct
 
   # parse given api
-  def parse(self, call, full_fct,get_includes):
+  def parse(self, call, full_fct,includes_list):
     print ("CALL, full_fct length", call, len(full_fct));
     if call in full_fct: 
       self.data[call] = self.get_args(full_fct[call])
@@ -291,7 +291,7 @@ class API_DescrParser:
     self.api_rettypes = set()
     self.api_id = {}
     
-    get_includes = []
+    includes_list = []
     api_data = {}
     full_fct = {}
     api_list = []
@@ -301,9 +301,9 @@ class API_DescrParser:
       (name, header) = api_headers[0]
       
       if i < 1:
-        api = API_TableParser(kfd_dir + header, name, full_fct, get_includes)
+        api = API_TableParser(kfd_dir + header, name, full_fct, includes_list)
         full_fct = api.full_fct
-        get_includes = api.get_includes
+        includes_list = api.includes_list
         print ("SIZE", len(full_fct))
         api_list = api.array
         self.api_names.append(name)
@@ -318,7 +318,7 @@ class API_DescrParser:
           self.fatal("call '"  + call + "' is already found")
 
       print ("DATA", api_data);
-      API_DeclParser(kfd_dir + header, api_list, api_data, full_fct,get_includes)
+      API_DeclParser(kfd_dir + header, api_list, api_data, full_fct,includes_list)
 
       for call in api_list:
         if not call in api_data:
