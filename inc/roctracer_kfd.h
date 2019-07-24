@@ -24,11 +24,7 @@ THE SOFTWARE.
 #define INC_ROCTRACER_KFD_H_
 #include <iostream>
 #include <mutex>
-
 #include <hsa.h>
-//#include <hsa_api_trace.h>
-//#include <hsa_ext_amd.h>
-
 #include "roctracer.h"
 #include "hsakmt.h"
 
@@ -673,5 +669,4 @@ struct output_streamer<HsaPmcTraceRoot&> {
 // end ostream ops for KFD
 };};
 
-//#include "inc/kfd_prof_str.h"
 #endif // INC_ROCTRACER_KFD_H_
