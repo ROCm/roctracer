@@ -1,8 +1,8 @@
 #!/usr/bin/python
 import os, sys, re
 
-OUT='inc/kfd_wrapper' 
-OUT_CPP='src/core/kfd_wrapper'
+OUT = 'inc/kfd_wrapper' 
+OUT_CPP = 'src/core/kfd_wrapper'
 API_HEADERS_H = ( 
   ('HSAKMTAPI', 'hsakmt.h'), 
 )
@@ -119,12 +119,12 @@ class API_TableParser:
   def parse(self):
     active = 0
     record = "";
-    cumulate=0;
-    self.full_fct={}
-    self.get_includes=[]
+    cumulate = 0;
+    self.full_fct = {}
+    self.get_includes = []
     for line in self.inp.readlines():
       print ("LINE before", line)
-      m=self.is_include(line)
+      m = self.is_include(line)
       if m:
           print ("INCLUDE, FILE", line,m.group(1))
           self.get_includes.append(m.group(1))
