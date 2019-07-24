@@ -24,7 +24,8 @@ THE SOFTWARE.
 
 // hip header file
 #include <hip/hip_runtime.h>
-#include <inc/kfd_prof_str.h>
+#include <inc/kfd_wrapper.h>
+#include <inc/roctracer_kfd.h>
 
 #ifndef ITERATIONS
 # define ITERATIONS 100
