@@ -77,12 +77,9 @@ class API_TableParser:
     self.name = name
     self.full_fct = full_fct
     self.includes_list = includes_list
-
     if not os.path.isfile(header):
       self.fatal("file '" + header + "' not found")
-
     self.inp = open(header, 'r')
-
     print ("NAME", name);
     self.beg_pattern = re.compile(name) 
     self.end_pattern = re.compile('.*\)\s*;\s*$'); 
