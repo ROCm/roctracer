@@ -172,7 +172,6 @@ class API_DeclParser:
   def is_api(self, call, record):
     return re.match('\s*' + call + '\s*\(', record)
 
-
   # check for end record
   def is_end(self, record):
     return self.end_pattern.search(record)
@@ -416,8 +415,6 @@ class API_DescrParser:
         n += 1
     fun(n, '-', '-', {})
 
-
-
   # generate API ID enumeration
   def gen_id_enum(self, n, name, call, data):
     if n == -1:
@@ -585,7 +582,6 @@ class API_DescrParser:
       self.content += '  return out;\n'
       self.content += '}\n'  
       self.content_cpp += 'inline std::ostream& operator<< (std::ostream& out, const HsaMemFlags& v) { out << "HsaMemFlags"; return out; }\n' 
-
 
   def gen_public_api(self, n, name, call, struct):
     if n == -1:
