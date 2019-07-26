@@ -46,14 +46,16 @@ eval_test() {
 
 #KFD
 export ROCTRACER_DOMAIN="kfd"
-eval_test "standalone KFD test" "LD_PRELOAD=/home/rachida/work/libhsakmt/hsakmt/inject.so ./test/MatrixTranspose_test"
+#Prefix MatrixTranspose_test call with LD_PRELOAD=$KFD_SO_LIB 
+eval_test "standalone KFD test" "./test/MatrixTranspose_test"
 
 # Standalone test
 # rocTrecer is used explicitely by test
 eval_test "standalone HIP test" "LD_PRELOAD=$HCC_HOME/lib/libmcwamp_hsa.so ./test/MatrixTranspose_test"
 
 # KFD implicit test
-eval_test "tool KFD implicit test" "LD_PRELOAD='$HCC_HOME/lib/libmcwamp_hsa.so /home/rachida/work/libhsakmt/hsakmt/inject.so' ./test/MatrixTranspose"
+#Prefix MatrixTranspose call with LD_PRELOAD=$KFD_SO_LIB 
+eval_test "tool KFD implicit test" "LD_PRELOAD='$HCC_HOME/lib/libmcwamp_hsa.so' ./test/MatrixTranspose"
 
 # Tool test
 # rocTracer/tool is loaded by HSA runtime
