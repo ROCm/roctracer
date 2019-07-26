@@ -83,5 +83,9 @@ echo "<trace name=\"HSA\"><parameters api=\"hsa_agent_get_info, hsa_amd_memory_p
 export ROCP_INPUT=input.xml
 eval_test "tool HSA test input" "LD_PRELOAD='$HSA_TOOLS_LIB' ./test/hsa/ctrl"
 
+#valgrind --leak-check=full $tbin
+#valgrind --tool=massif $tbin
+#ms_print massif.out.<N>
+
 echo "$test_number tests total / $test_status tests failed"
 exit $test_status
