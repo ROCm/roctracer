@@ -58,6 +58,8 @@ eval_test "tool KFD implicit test" "LD_PRELOAD='$HCC_HOME/lib/libmcwamp_hsa.so /
 # Tool test
 # rocTracer/tool is loaded by HSA runtime
 export HSA_TOOLS_LIB="test/libtracer_tool.so libroctracer64.so"
+export ROCTRACER_DOMAIN="hip"
+
 # HIP test
 eval_test "tool HIP test" "LD_PRELOAD='$HCC_HOME/lib/libmcwamp_hsa.so $HSA_TOOLS_LIB' ./test/MatrixTranspose"
 
