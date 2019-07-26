@@ -40,7 +40,6 @@ THE SOFTWARE.
 #define CONSTRUCTOR_API __attribute__((constructor))
 #define DESTRUCTOR_API __attribute__((destructor))
 
-
 // Macro to check ROC-tracer calls status
 #define ROCTRACER_CALL(call)                                                                       \
   do {                                                                                             \
@@ -401,7 +400,6 @@ extern "C" PUBLIC_API bool OnLoad(HsaApiTable* table, uint64_t runtime_version, 
 
   return true;
 }
-
 
 // HSA-runtime tool on-unload method
 extern "C" PUBLIC_API void OnUnload() {
