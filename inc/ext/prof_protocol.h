@@ -30,7 +30,8 @@ typedef enum {
   ACTIVITY_DOMAIN_HCC_OPS = 2,                    // HCC async activity domain
   ACTIVITY_DOMAIN_HIP_API = 3,                    // HIP domain
   ACTIVITY_DOMAIN_KFD_API = 4,                    // KFD domain
-  ACTIVITY_DOMAIN_NUMBER
+  ACTIVITY_DOMAIN_ROCTX_API = 5,                  // ROCTX domain
+  ACTIVITY_DOMAIN_NUMBER = 6
 } activity_domain_t;
 
 // API calback type
