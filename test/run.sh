@@ -26,7 +26,6 @@
 export HSA_TOOLS_REPORT_LOAD_FAILURE=1
 # paths to ROC profiler and oher libraries
 export LD_LIBRARY_PATH=$PWD
-#/home/rachida/work/libhsakmt/hsakmt
 # test check routin
 test_status=0
 test_number=0
@@ -46,16 +45,15 @@ eval_test() {
 
 #KFD
 export ROCTRACER_DOMAIN="kfd"
-#Prefix MatrixTranspose_test call with LD_PRELOAD=$KFD_SO_LIB 
-eval_test "standalone KFD test" "./test/MatrixTranspose_test"
 
-# Standalone test
-# rocTrecer is used explicitely by test
+#Prefix MatrixTranspose_test call with LD_PRELOAD=$KFD_SO_LIB 
+eval_test "standalone KFD test" "LD_PRELOAD='$HCC_HOME/lib/libmcwamp_hsa.so' ./test/MatrixTranspose_test"
+
 eval_test "standalone HIP test" "LD_PRELOAD=$HCC_HOME/lib/libmcwamp_hsa.so ./test/MatrixTranspose_test"
 
 # KFD implicit test
 #Prefix MatrixTranspose call with LD_PRELOAD=$KFD_SO_LIB 
-eval_test "tool KFD implicit test" "LD_PRELOAD='$HCC_HOME/lib/libmcwamp_hsa.so' ./test/MatrixTranspose"
+eval_test "tool KFD implicit test" "./test/MatrixTranspose"
 
 # Tool test
 # rocTracer/tool is loaded by HSA runtime
@@ -63,7 +61,8 @@ export HSA_TOOLS_LIB="test/libtracer_tool.so libroctracer64.so"
 export ROCTRACER_DOMAIN="hip"
 
 # HIP test
-eval_test "tool HIP test" "LD_PRELOAD='$HCC_HOME/lib/libmcwamp_hsa.so $HSA_TOOLS_LIB' ./test/MatrixTranspose"
+#eval_test "tool HIP test" "LD_PRELOAD='$HCC_HOME/lib/libmcwamp_hsa.so $HSA_TOOLS_LIB' ./test/MatrixTranspose"
+eval_test "tool HIP test" ./test/MatrixTranspose
 
 # HSA test
 export ROCTRACER_DOMAIN="hsa"
@@ -93,3 +92,4 @@ eval_test "tool HSA test input" "LD_PRELOAD='$HSA_TOOLS_LIB' ./test/hsa/ctrl"
 
 echo "$test_number tests total / $test_status tests failed"
 exit $test_status
+
