@@ -20,12 +20,14 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
 
+#define PROF_API_IMPL 1
+
 #include "inc/roctracer.h"
 #include "inc/roctracer_hcc.h"
 #include "inc/roctracer_hip.h"
-#define PROF_API_IMPL 1
+#include "inc/kfd_prof_str.h"
 #include "inc/roctracer_hsa.h"
-
+#include "inc/roctx.h"
 #include <atomic>
 #include <mutex>
 #include <dirent.h>
@@ -35,11 +37,17 @@ THE SOFTWARE.
 #include <sys/syscall.h>
 
 #include "core/loader.h"
+#include "core/trace_buffer.h"
 #include "proxy/tracker.h"
 #include "ext/hsa_rt_utils.hpp"
 #include "util/exception.h"
 #include "util/hsa_rsrc_factory.h"
 #include "util/logger.h"
+
+#include "proxy/hsa_queue.h"
+#include "proxy/intercept_queue.h"
+#include "proxy/proxy_queue.h"
+#include "proxy/simple_proxy_queue.h"
 
 #define PUBLIC_API __attribute__((visibility("default")))
 #define CONSTRUCTOR_API __attribute__((constructor))
@@ -83,19 +91,100 @@ THE SOFTWARE.
   return X;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+// Mark callback
+//
+typedef void (mark_api_callback_t)(uint32_t domain, uint32_t cid, const void* callback_data, void* arg);
+mark_api_callback_t* mark_api_callback_ptr = NULL;
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // Internal library methods
 //
+namespace rocprofiler {
+decltype(hsa_queue_create)* hsa_queue_create_fn;
+decltype(hsa_queue_destroy)* hsa_queue_destroy_fn;
+
+decltype(hsa_signal_store_relaxed)* hsa_signal_store_relaxed_fn;
+decltype(hsa_signal_store_relaxed)* hsa_signal_store_screlease_fn;
+
+decltype(hsa_queue_load_write_index_relaxed)* hsa_queue_load_write_index_relaxed_fn;
+decltype(hsa_queue_store_write_index_relaxed)* hsa_queue_store_write_index_relaxed_fn;
+decltype(hsa_queue_load_read_index_relaxed)* hsa_queue_load_read_index_relaxed_fn;
+
+decltype(hsa_queue_load_write_index_scacquire)* hsa_queue_load_write_index_scacquire_fn;
+decltype(hsa_queue_store_write_index_screlease)* hsa_queue_store_write_index_screlease_fn;
+decltype(hsa_queue_load_read_index_scacquire)* hsa_queue_load_read_index_scacquire_fn;
+
+decltype(hsa_amd_queue_intercept_create)* hsa_amd_queue_intercept_create_fn;
+decltype(hsa_amd_queue_intercept_register)* hsa_amd_queue_intercept_register_fn;
+
+decltype(hsa_amd_memory_async_copy)* hsa_amd_memory_async_copy_fn;
+decltype(hsa_amd_memory_async_copy_rect)* hsa_amd_memory_async_copy_rect_fn;
+
+::HsaApiTable* kHsaApiTable;
+
+void SaveHsaApi(::HsaApiTable* table) {
+  util::HsaRsrcFactory::InitHsaApiTable(table);
+
+  kHsaApiTable = table;
+  hsa_queue_create_fn = table->core_->hsa_queue_create_fn;
+  hsa_queue_destroy_fn = table->core_->hsa_queue_destroy_fn;
+
+  hsa_signal_store_relaxed_fn = table->core_->hsa_signal_store_relaxed_fn;
+  hsa_signal_store_screlease_fn = table->core_->hsa_signal_store_screlease_fn;
+
+  hsa_queue_load_write_index_relaxed_fn = table->core_->hsa_queue_load_write_index_relaxed_fn;
+  hsa_queue_store_write_index_relaxed_fn = table->core_->hsa_queue_store_write_index_relaxed_fn;
+  hsa_queue_load_read_index_relaxed_fn = table->core_->hsa_queue_load_read_index_relaxed_fn;
+
+  hsa_queue_load_write_index_scacquire_fn = table->core_->hsa_queue_load_write_index_scacquire_fn;
+  hsa_queue_store_write_index_screlease_fn = table->core_->hsa_queue_store_write_index_screlease_fn;
+  hsa_queue_load_read_index_scacquire_fn = table->core_->hsa_queue_load_read_index_scacquire_fn;
+
+  hsa_amd_queue_intercept_create_fn = table->amd_ext_->hsa_amd_queue_intercept_create_fn;
+  hsa_amd_queue_intercept_register_fn = table->amd_ext_->hsa_amd_queue_intercept_register_fn;
+}
+
+void RestoreHsaApi() {
+  ::HsaApiTable* table = kHsaApiTable;
+  table->core_->hsa_queue_create_fn = hsa_queue_create_fn;
+  table->core_->hsa_queue_destroy_fn = hsa_queue_destroy_fn;
+
+  table->core_->hsa_signal_store_relaxed_fn = hsa_signal_store_relaxed_fn;
+  table->core_->hsa_signal_store_screlease_fn = hsa_signal_store_screlease_fn;
+
+  table->core_->hsa_queue_load_write_index_relaxed_fn = hsa_queue_load_write_index_relaxed_fn;
+  table->core_->hsa_queue_store_write_index_relaxed_fn = hsa_queue_store_write_index_relaxed_fn;
+  table->core_->hsa_queue_load_read_index_relaxed_fn = hsa_queue_load_read_index_relaxed_fn;
+
+  table->core_->hsa_queue_load_write_index_scacquire_fn = hsa_queue_load_write_index_scacquire_fn;
+  table->core_->hsa_queue_store_write_index_screlease_fn = hsa_queue_store_write_index_screlease_fn;
+  table->core_->hsa_queue_load_read_index_scacquire_fn = hsa_queue_load_read_index_scacquire_fn;
+
+  table->amd_ext_->hsa_amd_queue_intercept_create_fn = hsa_amd_queue_intercept_create_fn;
+  table->amd_ext_->hsa_amd_queue_intercept_register_fn = hsa_amd_queue_intercept_register_fn;
+}
+}
+
 namespace roctracer {
 decltype(hsa_amd_memory_async_copy)* hsa_amd_memory_async_copy_fn;
 decltype(hsa_amd_memory_async_copy_rect)* hsa_amd_memory_async_copy_rect_fn;
+
+void hsa_async_copy_handler(::proxy::Tracker::entry_t* entry);
+void hsa_kernel_handler(::proxy::Tracker::entry_t* entry);
+TraceBuffer<trace_entry_t>::flush_prm_t trace_buffer_prm[] = {
+  {roctracer::COPY_ENTRY_TYPE, hsa_async_copy_handler},
+  {roctracer::KERNEL_ENTRY_TYPE, hsa_kernel_handler}
+};
+TraceBuffer<trace_entry_t> trace_buffer("HSA GPU", 0x200000, trace_buffer_prm, 2);
 
 namespace hsa_support {
 // callbacks table
 cb_table_t cb_table;
 // asyc copy activity callback
+bool async_copy_callback_enabled = false;
 activity_async_callback_t async_copy_callback_fun = NULL;
 void* async_copy_callback_arg = NULL;
-bool async_copy_callback_enabled = false;
+const char* output_prefix = NULL;
 // Table of function pointers to HSA Core Runtime
 CoreApiTable CoreApiTable_saved{};
 // Table of function pointers to AMD extensions
@@ -288,15 +377,6 @@ class MemoryPool {
   pthread_cond_t read_cond_;
 };
 
-CONSTRUCTOR_API void constructor() {
-  util::Logger::Create();
-}
-
-DESTRUCTOR_API void destructor() {
-  ::util::HsaRsrcFactory::Destroy();
-  util::Logger::Destroy();
-}
-
 // Correlation id storage
 static thread_local activity_correlation_id_t correlation_id_tls = 0;
 typedef std::map<activity_correlation_id_t, activity_correlation_id_t> correlation_id_map_t;
@@ -367,18 +447,73 @@ void HCC_AsyncActivityCallback(uint32_t op_id, void* record, void* arg) {
   pool->Write(*record_ptr);
 }
 
-bool hsa_async_copy_handler(hsa_signal_value_t value, void* arg) {
-  ::proxy::Tracker::entry_t* entry = reinterpret_cast<::proxy::Tracker::entry_t*>(arg);
+// Open output file
+FILE* open_output_file(const char* prefix, const char* name) {
+  FILE* file_handle = NULL;
+  if (prefix != NULL) {
+    std::ostringstream oss;
+    oss << prefix << "/" << name;
+    file_handle = fopen(oss.str().c_str(), "w");
+    if (file_handle == NULL) {
+      std::ostringstream errmsg;
+      errmsg << "ROCTracer: fopen error, file '" << oss.str().c_str() << "'";
+      perror(errmsg.str().c_str());
+      abort();
+    }
+  } else file_handle = stdout;
+  return file_handle;
+}
 
+FILE* kernel_file_handle = NULL;
+void hsa_kernel_handler(::proxy::Tracker::entry_t* entry) {
+  static uint64_t index = 0;
+  if (index == 0) {
+    kernel_file_handle = open_output_file(hsa_support::output_prefix, "results.txt");
+  }
+  fprintf(kernel_file_handle, "dispatch[%lu], gpu-id(%u), tid(%u), kernel-name(\"%s\"), time(%lu,%lu,%lu,%lu)\n",
+    index,
+    ::util::HsaRsrcFactory::Instance().GetAgentInfo(entry->agent)->dev_index,
+    entry->kernel.tid,
+    entry->kernel.name,
+    entry->dispatch,
+    entry->begin,
+    entry->end,
+    entry->complete);
+#if 0
+  fprintf(file_handle, "dispatch[%u], gpu-id(%u), queue-id(%u), queue-index(%lu), tid(%lu), grd(%u), wgr(%u), lds(%u), scr(%u), vgpr(%u), sgpr(%u), fbar(%u), sig(0x%lx), kernel-name(\"%s\")",
+    index,
+    HsaRsrcFactory::Instance().GetAgentInfo(entry->agent)->dev_index,
+    entry->data.queue_id,
+    entry->data.queue_index,
+    entry->data.thread_id,
+    entry->kernel_properties.grid_size,
+    entry->kernel_properties.workgroup_size,
+    entry->kernel_properties.lds_size,
+    entry->kernel_properties.scratch_size,
+    entry->kernel_properties.vgpr_count,
+    entry->kernel_properties.sgpr_count,
+    entry->kernel_properties.fbarrier_count,
+    entry->kernel_properties.signal.handle,
+    nik_name.c_str());
+  if (record) fprintf(file_handle, ", time(%lu,%lu,%lu,%lu)",
+    record->dispatch,
+    record->begin,
+    record->end,
+    record->complete);
+  fprintf(file_handle, "\n");
+  fflush(file_handle);
+#endif
+  index++;
+}
+
+void hsa_async_copy_handler(::proxy::Tracker::entry_t* entry) {
   activity_record_t record{};
   record.domain = ACTIVITY_DOMAIN_HSA_OPS;   // activity domain id
-  record.correlation_id = entry->index;      // activity ID
-  record.begin_ns = entry->record->begin;    // host begin timestamp
-  record.end_ns = entry->record->end;        // host end timestamp
+  record.begin_ns = entry->begin;    // host begin timestamp
+  record.end_ns = entry->end;        // host end timestamp
   record.device_id = 0;                      // device id
 
   hsa_support::async_copy_callback_fun(hsa_support::HSA_OP_ID_async_copy, &record, hsa_support::async_copy_callback_arg);
-  return false;
 }
 
 hsa_status_t hsa_amd_memory_async_copy_interceptor(
@@ -388,17 +523,15 @@ hsa_status_t hsa_amd_memory_async_copy_interceptor(
 {
   hsa_status_t status = HSA_STATUS_SUCCESS;
   if (hsa_support::async_copy_callback_enabled) {
-    ::proxy::Tracker* tracker = &::proxy::Tracker::Instance();
-    ::proxy::Tracker::entry_t* tracker_entry = tracker->Alloc(hsa_agent_t{}, completion_signal);
+    trace_entry_t* entry = trace_buffer.GetEntry();
+    ::proxy::Tracker::Enable(COPY_ENTRY_TYPE, hsa_agent_t{}, completion_signal, entry);
     status = hsa_amd_memory_async_copy_fn(dst, dst_agent, src,
                                           src_agent, size, num_dep_signals,
-                                          dep_signals, tracker_entry->signal);
-    if (status == HSA_STATUS_SUCCESS) {
-      tracker->EnableMemcopy(tracker_entry, hsa_async_copy_handler, reinterpret_cast<void*>(tracker_entry));
-    } else {
-      tracker->Delete(tracker_entry);
-    }
-  } else {
+                                          dep_signals, entry->signal);
+    if (status != HSA_STATUS_SUCCESS) EXC_ABORT(status, "hsa_amd_memory_async_copy interceptor");
+  }
+  else
+  {
     status = hsa_amd_memory_async_copy_fn(dst, dst_agent, src,
                                           src_agent, size, num_dep_signals,
                                           dep_signals, completion_signal);
@@ -414,18 +547,16 @@ hsa_status_t hsa_amd_memory_async_copy_rect_interceptor(
 {
   hsa_status_t status = HSA_STATUS_SUCCESS;
   if (hsa_support::async_copy_callback_enabled) {
-    ::proxy::Tracker* tracker = &::proxy::Tracker::Instance();
-    ::proxy::Tracker::entry_t* tracker_entry = tracker->Alloc(hsa_agent_t{}, completion_signal);
+    trace_entry_t* entry = trace_buffer.GetEntry();
+    ::proxy::Tracker::Enable(COPY_ENTRY_TYPE, hsa_agent_t{}, completion_signal, entry);
     status = hsa_amd_memory_async_copy_rect_fn(dst, dst_offset, src,
                                                src_offset, range, copy_agent,
                                                dir, num_dep_signals, dep_signals,
-                                               tracker_entry->signal);
-    if (status == HSA_STATUS_SUCCESS) {
-      tracker->EnableMemcopy(tracker_entry, hsa_async_copy_handler, reinterpret_cast<void*>(tracker_entry));
-    } else {
-      tracker->Delete(tracker_entry);
-    }
-  } else {
+                                               entry->signal);
+    if (status != HSA_STATUS_SUCCESS) EXC_ABORT(status, "hsa_amd_memory_async_copy interceptor");
+  }
+  else
+  {
     status = hsa_amd_memory_async_copy_rect_fn(dst, dst_offset, src,
                                                src_offset, range, copy_agent,
                                                dir, num_dep_signals, dep_signals,
@@ -439,15 +570,9 @@ std::atomic<util::Logger*> util::Logger::instance_{};
 MemoryPool* memory_pool = NULL;
 typedef std::recursive_mutex memory_pool_mutex_t;
 memory_pool_mutex_t memory_pool_mutex;
-
-Loader::mutex_t Loader::mutex_;
-std::atomic<HipLoader*> HipLoader::instance_{};
-std::atomic<HccLoader*> HccLoader::instance_{};
 }
 
-std::atomic<proxy::Tracker*> proxy::Tracker::instance_{};
-proxy::Tracker::mutex_t proxy::Tracker::glob_mutex_;
-proxy::Tracker::counter_t proxy::Tracker::counter_ = 0;
+LOADER_INSTANTIATE();
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Public library methods
@@ -481,8 +606,16 @@ PUBLIC_API const char* roctracer_op_string(
       break;
     }
     case ACTIVITY_DOMAIN_HIP_API: {
-      return hipApiName(op);
+      return roctracer::HipLoader::Instance().ApiName(op);
       break;
+    }
+    case ACTIVITY_DOMAIN_KFD_API: {
+      return roctracer::kfd_support::GetApiName(op);
+      break;
+    }
+    case ACTIVITY_DOMAIN_ROCTX_API: {
+       return roctracer::roctx::GetApiName(op);
+       break;
     }
     default:
       EXC_RAISING(ROCTRACER_STATUS_BAD_DOMAIN, "invalid domain ID(" << domain << ")");
@@ -504,6 +637,16 @@ PUBLIC_API roctracer_status_t roctracer_op_code(
       if (kind != NULL) *kind = 0;
       break;
     }
+    case ACTIVITY_DOMAIN_KFD_API: {
+      *op = roctracer::kfd_support::GetApiCode(str);
+      if (kind != NULL) *kind = 0;
+      break;
+    }
+    case ACTIVITY_DOMAIN_ROCTX_API: {
+      *op = roctracer::roctx::GetApiCode(str);
+      if (kind != NULL) *kind = 0;
+      break;
+    }
     default:
       EXC_RAISING(ROCTRACER_STATUS_BAD_DOMAIN, "limited domain ID(" << domain << ")");
   }
@@ -516,6 +659,8 @@ static inline uint32_t get_op_num(const uint32_t& domain) {
     case ACTIVITY_DOMAIN_HSA_API: return HSA_API_ID_NUMBER;
     case ACTIVITY_DOMAIN_HCC_OPS: return hc::HSA_OP_ID_NUMBER;
     case ACTIVITY_DOMAIN_HIP_API: return HIP_API_ID_NUMBER;
+    case ACTIVITY_DOMAIN_KFD_API: return KFD_API_ID_NUMBER;
+    case ACTIVITY_DOMAIN_ROCTX_API: return ROCTX_API_ID_NUMBER;
     default:
       EXC_RAISING(ROCTRACER_STATUS_BAD_DOMAIN, "invalid domain ID(" << domain << ")");
   }
@@ -530,7 +675,15 @@ static void roctracer_enable_callback_impl(
     void* user_data)
 {
   switch (domain) {
+#if 1
+    case ACTIVITY_DOMAIN_KFD_API: {
+      const bool succ = roctracer::KfdLoader::Instance().RegisterApiCallback(op, (void*)callback, user_data);
+      if (succ == false) EXC_RAISING(ROCTRACER_STATUS_ERROR, "KFD RegisterApiCallback error");
+      break;
+    }
+#endif
     case ACTIVITY_DOMAIN_HSA_OPS: break;
+    case ACTIVITY_DOMAIN_ROCTX_API: break;
     case ACTIVITY_DOMAIN_HSA_API: {
       roctracer::hsa_support::cb_table.set(op, callback, user_data);
       break;
@@ -575,6 +728,7 @@ PUBLIC_API roctracer_status_t roctracer_enable_callback(
   API_METHOD_PREFIX
   for (uint32_t domain = 0; domain < ACTIVITY_DOMAIN_NUMBER; domain++) {
     const uint32_t op_num = get_op_num(domain);
+    fprintf(stdout, "domain %d has %d ops \n", domain, op_num);
     for (uint32_t op = 0; op < op_num; op++) roctracer_enable_callback_impl(domain, op, callback, user_data);
   }
   API_METHOD_SUFFIX
@@ -586,7 +740,15 @@ static void roctracer_disable_callback_impl(
     uint32_t op)
 {
   switch (domain) {
+#if 1
+    case ACTIVITY_DOMAIN_KFD_API: {
+      const bool succ = roctracer::KfdLoader::Instance().RemoveApiCallback(op);
+      if (succ == false) EXC_RAISING(ROCTRACER_STATUS_ERROR, "KFD RemoveApiCallback error");
+      break;
+    }
+#endif
     case ACTIVITY_DOMAIN_HSA_OPS: break;
+    case ACTIVITY_DOMAIN_ROCTX_API: break;
     case ACTIVITY_DOMAIN_HSA_API: break;
     case ACTIVITY_DOMAIN_HCC_OPS: break;
     case ACTIVITY_DOMAIN_HIP_API: {
@@ -673,9 +835,12 @@ static void roctracer_enable_activity_impl(
   switch (domain) {
     case ACTIVITY_DOMAIN_HSA_OPS: {
       roctracer::hsa_support::async_copy_callback_enabled = true;
+      rocprofiler::InterceptQueue::Enable(true);
       break;
     }
     case ACTIVITY_DOMAIN_HSA_API: break;
+    case ACTIVITY_DOMAIN_ROCTX_API: break;
+    case ACTIVITY_DOMAIN_KFD_API: break;
     case ACTIVITY_DOMAIN_HCC_OPS: {
       if (roctracer::HccLoader::GetRef() == NULL) {
         roctracer::HccLoader::Instance().InitActivityCallback((void*)roctracer::HCC_ActivityIdCallback,
@@ -735,9 +900,12 @@ static void roctracer_disable_activity_impl(
   switch (domain) {
     case ACTIVITY_DOMAIN_HSA_OPS: {
       roctracer::hsa_support::async_copy_callback_enabled = false;
+      rocprofiler::InterceptQueue::Enable(false);
       break;
     }
     case ACTIVITY_DOMAIN_HSA_API: break;
+    case ACTIVITY_DOMAIN_KFD_API: break;
+    case ACTIVITY_DOMAIN_ROCTX_API: break;
     case ACTIVITY_DOMAIN_HCC_OPS: {
       const bool succ = roctracer::HccLoader::Instance().EnableActivityCallback(op, false);
       if (succ == false) HCC_EXC_RAISING(ROCTRACER_STATUS_HCC_OPS_ERR, "HCC::EnableActivityCallback(NULL) error domain(" << domain << ") op(" << op << ")");
@@ -790,6 +958,11 @@ PUBLIC_API roctracer_status_t roctracer_flush_activity(roctracer_pool_t* pool) {
   API_METHOD_SUFFIX
 }
 
+// Mark API
+PUBLIC_API void roctracer_mark(const char* str) {
+  if (mark_api_callback_ptr) mark_api_callback_ptr(ACTIVITY_DOMAIN_NUMBER, 0, str, NULL);
+}
+
 // Set properties
 PUBLIC_API roctracer_status_t roctracer_set_properties(
     roctracer_domain_t domain,
@@ -800,8 +973,25 @@ PUBLIC_API roctracer_status_t roctracer_set_properties(
     case ACTIVITY_DOMAIN_HSA_OPS: {
       // HSA OPS properties
       roctracer::hsa_ops_properties_t* ops_properties = reinterpret_cast<roctracer::hsa_ops_properties_t*>(properties);
+      HsaApiTable* table = reinterpret_cast<HsaApiTable*>(ops_properties->table);
       roctracer::hsa_support::async_copy_callback_fun = ops_properties->async_copy_callback_fun;
       roctracer::hsa_support::async_copy_callback_arg = ops_properties->async_copy_callback_arg;
+      roctracer::hsa_support::output_prefix = ops_properties->output_prefix;
+
+      // HSA dispatches intercepting
+      rocprofiler::SaveHsaApi(table);
+      rocprofiler::ProxyQueue::InitFactory();
+      rocprofiler::ProxyQueue::HsaIntercept(table);
+      rocprofiler::InterceptQueue::HsaIntercept(table);
+
+      // HSA async-copy tracing
+      hsa_status_t status = hsa_amd_profiling_async_copy_enable(true);
+      if (status != HSA_STATUS_SUCCESS) EXC_ABORT(status, "hsa_amd_profiling_async_copy_enable");
+      roctracer::hsa_amd_memory_async_copy_fn = table->amd_ext_->hsa_amd_memory_async_copy_fn;
+      roctracer::hsa_amd_memory_async_copy_rect_fn = table->amd_ext_->hsa_amd_memory_async_copy_rect_fn;
+      table->amd_ext_->hsa_amd_memory_async_copy_fn = roctracer::hsa_amd_memory_async_copy_interceptor;
+      table->amd_ext_->hsa_amd_memory_async_copy_rect_fn = roctracer::hsa_amd_memory_async_copy_rect_interceptor;
+
       break;
     }
     case ACTIVITY_DOMAIN_HSA_API: {
@@ -812,9 +1002,17 @@ PUBLIC_API roctracer_status_t roctracer_set_properties(
       roctracer::hsa_support::intercept_ImageExtTable(table->image_ext_);
       break;
     }
+    case ACTIVITY_DOMAIN_KFD_API: {
+      // KFD API properties  
+      //roctracer::kfd_support::HSAKMTAPI_saved_t* table = reinterpret_cast<roctracer::kfd_support::HSAKMTAPI_saved_t*>(properties);
+      roctracer::kfd_support::intercept_KFDApiTable();
+      //intercept_HSAKMTAPI(roctracer::kfd_support::HSAKMTAPI_saved);
+      break;
+    }
+    case ACTIVITY_DOMAIN_ROCTX_API: break;
     case ACTIVITY_DOMAIN_HCC_OPS:
     case ACTIVITY_DOMAIN_HIP_API:
-      EXC_RAISING(ROCTRACER_STATUS_BAD_DOMAIN, "properties are not supported, domain ID(" << domain << ")");
+      mark_api_callback_ptr = reinterpret_cast<mark_api_callback_t*>(properties);
     default:
       EXC_RAISING(ROCTRACER_STATUS_BAD_DOMAIN, "invalid domain ID(" << domain << ")");
   }
@@ -822,17 +1020,38 @@ PUBLIC_API roctracer_status_t roctracer_set_properties(
 }
 
 // HSA-runtime tool on-load method
-PUBLIC_API bool OnLoad(HsaApiTable* table, uint64_t runtime_version, uint64_t failed_tool_count,
+PUBLIC_API bool roctracer_load(HsaApiTable* table, uint64_t runtime_version, uint64_t failed_tool_count,
                        const char* const* failed_tool_names) {
-  // enabled HSA async-copy tracing
-  hsa_status_t status = hsa_amd_profiling_async_copy_enable(true);
-  if (status != HSA_STATUS_SUCCESS) EXC_ABORT(status, "hsa_amd_profiling_async_copy_enable");
-  roctracer::hsa_amd_memory_async_copy_fn = table->amd_ext_->hsa_amd_memory_async_copy_fn;
-  roctracer::hsa_amd_memory_async_copy_rect_fn = table->amd_ext_->hsa_amd_memory_async_copy_rect_fn;
-  table->amd_ext_->hsa_amd_memory_async_copy_fn = roctracer::hsa_amd_memory_async_copy_interceptor;
-  table->amd_ext_->hsa_amd_memory_async_copy_rect_fn = roctracer::hsa_amd_memory_async_copy_rect_interceptor;
+  static bool is_loaded = false;
+  if (is_loaded) return true;
+  is_loaded = true;
 
   return true;
+}
+
+PUBLIC_API void roctracer_unload(bool destruct) {
+  static bool is_unloaded = false;
+  if (is_unloaded) return;
+  is_unloaded = true;
+
+  if (destruct == false) roctracer::trace_buffer.Flush();
+  if ((roctracer::hsa_support::output_prefix != NULL) && (roctracer::kernel_file_handle != NULL)) fclose(roctracer::kernel_file_handle);
+}
+
+PUBLIC_API bool OnLoad(HsaApiTable* table, uint64_t runtime_version, uint64_t failed_tool_count,
+                       const char* const* failed_tool_names) {
+  return roctracer_load(table, runtime_version, failed_tool_count, failed_tool_names);
+}
+PUBLIC_API void OnUnload() { roctracer_unload(false); }
+
+CONSTRUCTOR_API void constructor() {
+  roctracer::util::Logger::Create();
+}
+
+DESTRUCTOR_API void destructor() {
+  roctracer_unload(true);
+  util::HsaRsrcFactory::Destroy();
+  roctracer::util::Logger::Destroy();
 }
 
 }  // extern "C"
