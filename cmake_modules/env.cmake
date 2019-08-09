@@ -28,6 +28,7 @@ set ( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fmerge-all-constants" )
 set ( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fms-extensions" )
 set ( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fmerge-all-constants" )
 set ( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC" )
+#set ( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror=unused-function" )
 
 set ( CMAKE_SHARED_LINKER_FLAGS "-Wl,-Bdynamic -Wl,-z,noexecstack" )
 
@@ -102,6 +103,7 @@ endif ()
 
 find_library ( HSA_KMT_LIB "libhsakmt.so" )
 get_filename_component ( HSA_KMT_LIB_PATH ${HSA_KMT_LIB} DIRECTORY )
+set ( HSA_KMT_INC_PATH "${HSA_KMT_LIB_PATH}/../include" )
 
 ## Basic Tool Chain Information
 message ( "----------------NBIT: ${NBIT}" )
@@ -113,5 +115,6 @@ message ( "-HSA-Runtime-HSA-Inc: ${HSA_RUNTIME_HSA_INC_PATH}" )
 message ( "-----HSA-Runtime-Lib: ${HSA_RUNTIME_LIB_PATH}" )
 message ( "-------------HCC-Inc: ${HCC_INC_DIR}" )
 message ( "-------------HIP-Inc: ${HIP_INC_DIR}" )
+message ( "-------------KFD-Inc: ${HSA_KMT_INC_PATH}" )
 message ( "-----CMAKE_CXX_FLAGS: ${CMAKE_CXX_FLAGS}" )
 message ( "---CMAKE_PREFIX_PATH: ${CMAKE_PREFIX_PATH}" )
