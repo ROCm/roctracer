@@ -1,8 +1,16 @@
 #ifndef SRC_CORE_LOADER_H_
 #define SRC_CORE_LOADER_H_
 
+#include <atomic>
 #include <mutex>
 #include <dlfcn.h>
+
+#define LOADER_INSTANTIATE() \
+  std::atomic<roctracer::HipLoader*> roctracer::HipLoader::instance_{}; \
+  std::atomic<roctracer::HccLoader*> roctracer::HccLoader::instance_{}; \
+  std::atomic<roctracer::KfdLoader*> roctracer::KfdLoader::instance_{}; \
+  std::atomic<roctracer::RocTxLoader*> roctracer::RocTxLoader::instance_{}; \
+  roctracer::Loader::mutex_t roctracer::Loader::mutex_;
 
 namespace roctracer {
 
@@ -41,6 +49,7 @@ class HipLoader : protected Loader {
   typedef decltype(hipRegisterActivityCallback) RegisterActivityCallback_t;
   typedef decltype(hipRemoveActivityCallback) RemoveActivityCallback_t;
   typedef decltype(hipKernelNameRef) KernelNameRef_t;
+  typedef decltype(hipApiName) ApiName_t;
 
   static HipLoader& Instance() {
     HipLoader* obj = instance_.load(std::memory_order_acquire);
@@ -60,6 +69,7 @@ class HipLoader : protected Loader {
     RegisterActivityCallback = GetFun<RegisterActivityCallback_t>("hipRegisterActivityCallback");
     RemoveActivityCallback = GetFun<RemoveActivityCallback_t>("hipRemoveActivityCallback");
     KernelNameRef = GetFun<KernelNameRef_t>("hipKernelNameRef");
+    ApiName = GetFun<ApiName_t>("hipApiName");
   }
 
   RegisterApiCallback_t* RegisterApiCallback;
@@ -67,6 +77,7 @@ class HipLoader : protected Loader {
   RegisterActivityCallback_t* RegisterActivityCallback;
   RemoveActivityCallback_t* RemoveActivityCallback;
   KernelNameRef_t* KernelNameRef;
+  ApiName_t* ApiName;
 
   private:
   static std::atomic<HipLoader*> instance_;
@@ -95,13 +106,13 @@ class HccLoader : protected Loader {
     return *obj;
   }
 
-  HccLoader() : Loader("libmcwamp.so") {
+  HccLoader() : Loader("libmcwamp_hsa.so") {
     // Kalmar::CLAMP::InitActivityCallback
-    InitActivityCallback = GetFun<InitActivityCallback_t>("_ZN6Kalmar5CLAMP20InitActivityCallbackEPvS1_S1_");
+    InitActivityCallback = GetFun<InitActivityCallback_t>("InitActivityCallbackImpl");
     // Kalmar::CLAMP::EnableActivityIdCallback
-    EnableActivityCallback = GetFun<EnableActivityCallback_t>("_ZN6Kalmar5CLAMP22EnableActivityCallbackEjb");
+    EnableActivityCallback = GetFun<EnableActivityCallback_t>("EnableActivityCallbackImpl");
     // Kalmar::CLAMP::GetCmdName
-    GetCmdName = GetFun<GetCmdName_t>("_ZN6Kalmar5CLAMP10GetCmdNameEj");
+    GetCmdName = GetFun<GetCmdName_t>("GetCmdNameImpl");
   }
 
   InitActivityCallback_t* InitActivityCallback;
@@ -112,6 +123,67 @@ class HccLoader : protected Loader {
   static std::atomic<HccLoader*> instance_;
 };
 
+// KFD runtime library loader class
+class KfdLoader : protected Loader {
+  public:
+  typedef bool (RegisterApiCallback_t)(uint32_t op, void* callback, void* arg);
+  typedef bool (RemoveApiCallback_t)(uint32_t op);
+
+  static KfdLoader& Instance() {
+    KfdLoader* obj = instance_.load(std::memory_order_acquire);
+    if (obj == NULL) {
+      std::lock_guard<mutex_t> lck(mutex_);
+      if (instance_.load(std::memory_order_relaxed) == NULL) {
+        obj = new KfdLoader();
+        instance_.store(obj, std::memory_order_release);
+      }
+    }
+    return *instance_;
+  }
+
+  KfdLoader() : Loader("libkfdwrapper64.so") {
+    RegisterApiCallback = GetFun<RegisterApiCallback_t>("RegisterApiCallback");
+    RemoveApiCallback = GetFun<RemoveApiCallback_t>("RemoveApiCallback");
+  }
+
+  RegisterApiCallback_t* RegisterApiCallback;
+  RemoveApiCallback_t* RemoveApiCallback;
+
+  private:
+  static std::atomic<KfdLoader*> instance_;
+};
+
+// KFD runtime library loader class
+class RocTxLoader : protected Loader {
+  public:
+  typedef bool (RegisterApiCallback_t)(uint32_t op, void* callback, void* arg);
+  typedef bool (RemoveApiCallback_t)(uint32_t op);
+
+  static RocTxLoader& Instance() {
+    RocTxLoader* obj = instance_.load(std::memory_order_acquire);
+    if (obj == NULL) {
+      std::lock_guard<mutex_t> lck(mutex_);
+      if (instance_.load(std::memory_order_relaxed) == NULL) {
+        obj = new RocTxLoader();
+        instance_.store(obj, std::memory_order_release);
+      }
+    }
+    return *instance_;
+  }
+
+  RocTxLoader() : Loader("libroctx64.so") {
+    RegisterApiCallback = GetFun<RegisterApiCallback_t>("RegisterApiCallback");
+    RemoveApiCallback = GetFun<RemoveApiCallback_t>("RemoveApiCallback");
+  }
+
+  RegisterApiCallback_t* RegisterApiCallback;
+  RemoveApiCallback_t* RemoveApiCallback;
+
+  private:
+  static std::atomic<RocTxLoader*> instance_;
+};
+
 } // namespace roctracer
 
 #endif // SRC_CORE_LOADER_H_
+
