@@ -24,7 +24,8 @@ THE SOFTWARE.
 
 // hip header file
 #include <hip/hip_runtime.h>
-#include <inc/kfd_wrapper.h>
+#include <inc/kfd_prof_str.h>
+#include <inc/roctx.h>
 #include <inc/roctracer_kfd.h>
 
 #ifndef ITERATIONS
@@ -50,6 +51,7 @@ __global__ void matrixTranspose(hipLaunchParm lp, float* out, float* in, const i
 
 // CPU implementation of matrix transpose
 void matrixTransposeCPUReference(float* output, float* input, const unsigned int width) {
+    roctracer::roctx::roctxMarkA_callback("MatrixTranspose_computation");
     for (unsigned int j = 0; j < width; j++) {
         for (unsigned int i = 0; i < width; i++) {
             output[i * width + j] = input[j * width + i];
@@ -83,6 +85,7 @@ int main() {
     while (iterations-- > 0) {
         start_tracing();
 
+        roctracer::roctx::roctxRangePushA_callback("Range for mem alloc");
         Matrix = (float*)malloc(NUM * sizeof(float));
         TransposeMatrix = (float*)malloc(NUM * sizeof(float));
         cpuTransposeMatrix = (float*)malloc(NUM * sizeof(float));
@@ -100,14 +103,17 @@ int main() {
         hipMemcpy(gpuMatrix, Matrix, NUM * sizeof(float), hipMemcpyHostToDevice);
     
         // Lauching kernel from host
+        roctracer::roctx::roctxRangePushA_callback("Range for Kernel Launch");
         hipLaunchKernel(matrixTranspose, dim3(WIDTH / THREADS_PER_BLOCK_X, WIDTH / THREADS_PER_BLOCK_Y),
                         dim3(THREADS_PER_BLOCK_X, THREADS_PER_BLOCK_Y), 0, 0, gpuTransposeMatrix,
                         gpuMatrix, WIDTH);
+        roctracer::roctx::roctxRangePop_callback();
     
         // Memory transfer from device to host
         hipMemcpy(TransposeMatrix, gpuTransposeMatrix, NUM * sizeof(float), hipMemcpyDeviceToHost);
     
         // CPU MatrixTranspose computation
+        roctracer::roctx::roctxRangePushA_callback("Range for Matrix Transpose");
         matrixTransposeCPUReference(cpuTransposeMatrix, Matrix, WIDTH);
     
         // verify the results
@@ -124,6 +130,8 @@ int main() {
             printf("PASSED!\n");
         }
     
+        roctracer::roctx::roctxRangePop_callback();
+
         // free the resources on device side
         hipFree(gpuMatrix);
         hipFree(gpuTransposeMatrix);
@@ -132,6 +140,8 @@ int main() {
         free(Matrix);
         free(TransposeMatrix);
         free(cpuTransposeMatrix);
+
+        roctracer::roctx::roctxRangePop_callback();
 
         stop_tracing();
     }
@@ -171,7 +181,18 @@ void kfd_api_callback(
     cid,
     data->correlation_id,
     (data->phase == ACTIVITY_API_PHASE_ENTER) ? "on-enter" : "on-exit");
+  //if (data->phase == ACTIVITY_API_PHASE_ENTER) {
   std::cout << kfd_api_data_pair_t(cid, *data) << std::endl;
+  //} else {
+    //switch (cid) {
+    //  case KFD_API_ID_hsaKmtAllocMemory:
+    //    fprintf(stdout, "*MemoryAddress(0x%p)",
+    //      *(data->args.hsaKmtAllocMemory.MemoryAddress));
+    //    break;
+    //  default:
+    //    break;
+    //}
+  //}
   fprintf(stdout, "\n"); fflush(stdout);
 }
 
@@ -282,6 +303,10 @@ void start_tracing() {
     ROCTRACER_CALL(roctracer_enable_domain_callback(ACTIVITY_DOMAIN_KFD_API, kfd_api_callback, NULL));
     found_domain = 1;
   } 
+  if (strncmp(trace_domain, "roctx", 3) == 0) {
+    ROCTRACER_CALL(roctracer_enable_domain_callback(ACTIVITY_DOMAIN_ROCTX_API, kfd_api_callback, NULL));
+    found_domain = 1;
+  }
   if (strncmp(trace_domain, "hip", 3) == 0) {
     // Enable HIP API callbacks
     ROCTRACER_CALL(roctracer_enable_callback(api_callback, NULL));
