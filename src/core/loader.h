@@ -17,8 +17,12 @@ class Loader {
   public:
   typedef std::mutex mutex_t;
 
+  template <class fun_t>
+  fun_t* GetFun(const char* fun_name) { return (fun_t*) dlsym(handle_, fun_name); }
+
+  protected:
   Loader(const char* lib_name) {
-    handle_ = dlopen(lib_name, RTLD_LAZY|RTLD_NODELETE);
+    handle_ = dlopen(lib_name, RTLD_LAZY|RTLD_NOLOAD);
     if (handle_ == NULL) {
       fprintf(stderr, "roctracer: Loading '%s' failed, %s\n", lib_name, dlerror());
       abort();
@@ -28,9 +32,6 @@ class Loader {
   ~Loader() {
     if (handle_ != NULL) dlclose(handle_);
   }
-
-  template <class fun_t>
-  fun_t* GetFun(const char* fun_name) { return (fun_t*) dlsym(handle_, fun_name); }
 
   protected:
   static mutex_t mutex_;
@@ -61,6 +62,14 @@ class HipLoader : protected Loader {
     return *instance_;
   }
 
+  RegisterApiCallback_t* RegisterApiCallback;
+  RemoveApiCallback_t* RemoveApiCallback;
+  RegisterActivityCallback_t* RegisterActivityCallback;
+  RemoveActivityCallback_t* RemoveActivityCallback;
+  KernelNameRef_t* KernelNameRef;
+  ApiName_t* ApiName;
+
+  protected:
   HipLoader() : Loader("libhip_hcc.so") {
     RegisterApiCallback = GetFun<RegisterApiCallback_t>("hipRegisterApiCallback");
     RemoveApiCallback = GetFun<RemoveApiCallback_t>("hipRemoveApiCallback");
@@ -69,13 +78,6 @@ class HipLoader : protected Loader {
     KernelNameRef = GetFun<KernelNameRef_t>("hipKernelNameRef");
     ApiName = GetFun<ApiName_t>("hipApiName");
   }
-
-  RegisterApiCallback_t* RegisterApiCallback;
-  RemoveApiCallback_t* RemoveApiCallback;
-  RegisterActivityCallback_t* RegisterActivityCallback;
-  RemoveActivityCallback_t* RemoveActivityCallback;
-  KernelNameRef_t* KernelNameRef;
-  ApiName_t* ApiName;
 
   private:
   static std::atomic<HipLoader*> instance_;
@@ -104,6 +106,11 @@ class HccLoader : protected Loader {
     return *obj;
   }
 
+  InitActivityCallback_t* InitActivityCallback;
+  EnableActivityCallback_t* EnableActivityCallback;
+  GetCmdName_t* GetCmdName;
+
+  protected:
   HccLoader() : Loader("libmcwamp_hsa.so") {
     // Kalmar::CLAMP::InitActivityCallback
     InitActivityCallback = GetFun<InitActivityCallback_t>("InitActivityCallbackImpl");
@@ -112,10 +119,6 @@ class HccLoader : protected Loader {
     // Kalmar::CLAMP::GetCmdName
     GetCmdName = GetFun<GetCmdName_t>("GetCmdNameImpl");
   }
-
-  InitActivityCallback_t* InitActivityCallback;
-  EnableActivityCallback_t* EnableActivityCallback;
-  GetCmdName_t* GetCmdName;
 
   private:
   static std::atomic<HccLoader*> instance_;
@@ -139,13 +142,18 @@ class KfdLoader : protected Loader {
     return *instance_;
   }
 
+<<<<<<< HEAD
   KfdLoader() : Loader("libkfd_wrapper.so") {
+=======
+  RegisterApiCallback_t* RegisterApiCallback;
+  RemoveApiCallback_t* RemoveApiCallback;
+
+  protected:
+  KfdLoader() : Loader("libkfdwrapper64.so") {
+>>>>>>> 4dfd1bb... unloading and flush fix
     RegisterApiCallback = GetFun<RegisterApiCallback_t>("RegisterApiCallback");
     RemoveApiCallback = GetFun<RemoveApiCallback_t>("RemoveApiCallback");
   }
-
-  RegisterApiCallback_t* RegisterApiCallback;
-  RemoveApiCallback_t* RemoveApiCallback;
 
   private:
   static std::atomic<KfdLoader*> instance_;
