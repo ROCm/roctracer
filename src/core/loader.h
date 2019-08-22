@@ -5,14 +5,6 @@
 #include <mutex>
 #include <dlfcn.h>
 
-<<<<<<< HEAD
-#define LOADER_INSTANTIATE() \
-  std::atomic<roctracer::HipLoader*> roctracer::HipLoader::instance_{}; \
-  std::atomic<roctracer::HccLoader*> roctracer::HccLoader::instance_{}; \
-  roctracer::Loader::mutex_t roctracer::Loader::mutex_;
-
-=======
->>>>>>> 8cfde55... multiple processes tracing support
 namespace roctracer {
 
 // Base runtime loader class
@@ -123,43 +115,16 @@ class KfdApi {
   typedef bool (RegisterApiCallback_t)(uint32_t op, void* callback, void* arg);
   typedef bool (RemoveApiCallback_t)(uint32_t op);
 
-<<<<<<< HEAD
-  static KfdLoader& Instance() {
-    KfdLoader* obj = instance_.load(std::memory_order_acquire);
-    if (obj == NULL) {
-      std::lock_guard<mutex_t> lck(mutex_);
-      if (instance_.load(std::memory_order_relaxed) == NULL) {
-        obj = new KfdLoader();
-        instance_.store(obj, std::memory_order_release);
-      }
-    }
-    return *instance_;
-  }
-
-<<<<<<< HEAD
-  KfdLoader() : Loader("libkfd_wrapper.so") {
-=======
-=======
->>>>>>> 8cfde55... multiple processes tracing support
   RegisterApiCallback_t* RegisterApiCallback;
   RemoveApiCallback_t* RemoveApiCallback;
 
   protected:
-<<<<<<< HEAD
-  KfdLoader() : Loader("libkfdwrapper64.so") {
->>>>>>> 4dfd1bb... unloading and flush fix
-    RegisterApiCallback = GetFun<RegisterApiCallback_t>("RegisterApiCallback");
-    RemoveApiCallback = GetFun<RemoveApiCallback_t>("RemoveApiCallback");
-=======
   void init(Loader* loader) {
     RegisterApiCallback = loader->GetFun<RegisterApiCallback_t>("RegisterApiCallback");
     RemoveApiCallback = loader->GetFun<RemoveApiCallback_t>("RemoveApiCallback");
->>>>>>> 8cfde55... multiple processes tracing support
   }
 };
 
-<<<<<<< HEAD
-=======
 // rocTX runtime library loader class
 class RocTxApi {
   public:
@@ -183,7 +148,6 @@ typedef BaseLoader<HccApi> HccLoader;
 typedef BaseLoader<KfdApi> KfdLoader;
 typedef BaseLoader<RocTxApi> RocTxLoader;
 
->>>>>>> 8cfde55... multiple processes tracing support
 } // namespace roctracer
 
 #define LOADER_INSTANTIATE() \
