@@ -1,8 +1,8 @@
 #!/usr/bin/python
 import os, sys, re
 
-OUT = 'inc/kfd_wrapper' 
-OUT_CPP = 'src/core/kfd_wrapper'
+OUT='inc/kfd_prof_str.h' 
+OUT_CPP='src/core/kfd_wrapper.cpp'
 API_HEADERS_H = ( 
   ('HSAKMTAPI', 'hsakmt.h'), 
 )
@@ -77,9 +77,12 @@ class API_TableParser:
     self.name = name
     self.full_fct = full_fct
     self.includes_list = includes_list
+
     if not os.path.isfile(header):
       self.fatal("file '" + header + "' not found")
+
     self.inp = open(header, 'r')
+
     print ("NAME", name);
     self.beg_pattern = re.compile(name) 
     self.end_pattern = re.compile('.*\)\s*;\s*$'); 
@@ -117,11 +120,11 @@ class API_TableParser:
     active = 0
     record = "";
     cumulate = 0;
-    self.full_fct = {}
-    self.includes_list = []
+    self.full_fct={}
+    self.includes_list=[]
     for line in self.inp.readlines():
       print ("LINE before", line)
-      m = self.is_include(line)
+      m=self.is_include(line)
       if m:
           print ("INCLUDE, FILE", line,m.group(1))
           self.includes_list.append(m.group(1))
@@ -146,7 +149,7 @@ class API_TableParser:
           self.array.append(mycall) 
 
 #############################################################
-# API declaration parser class
+# API declaration parser clas
 class API_DeclParser:
   def fatal(self, msg):
     fatal('API_DeclParser', msg)
@@ -171,6 +174,7 @@ class API_DeclParser:
   # check for API method record
   def is_api(self, call, record):
     return re.match('\s*' + call + '\s*\(', record)
+
 
   # check for end record
   def is_end(self, record):
@@ -336,8 +340,8 @@ class API_DescrParser:
     for call in self.ns_calls:
       self.content += '// ' + call + ' was not parsed\n'
     self.content += '\n'
-    self.content += '#ifndef ' + out_macro + 'H_' + '\n'
-    self.content += '#define ' + out_macro + 'H_' + '\n'
+    self.content += '#ifndef ' + out_macro + '\n'
+    self.content += '#define ' + out_macro + '\n'
 
     self.content += '\n'
 
@@ -372,7 +376,7 @@ class API_DescrParser:
 
     self.add_section('API output stream', '    ', self.gen_out_stream)
     self.add_section_cpp('API callback fcts', '    ', self.gen_public_api)
-    self.content += '#endif // ' + out_macro + 'H_'
+    self.content += '#endif // ' + out_macro + '_'
 
     self.content_cpp += '}\n'
 
@@ -414,6 +418,8 @@ class API_DescrParser:
         fun(n, name, call, self.api_data[call])
         n += 1
     fun(n, '-', '-', {})
+
+
 
   # generate API ID enumeration
   def gen_id_enum(self, n, name, call, data):
@@ -490,7 +496,7 @@ class API_DescrParser:
 
   def gen_intercept_decl(self, n, name, call, struct):
     if n > 0 and call == '-':
-      self.content += '} HSAKMTAPI_table_t;\n'
+      self.content += '} HSAKMTAPI_saved_t;\n' #was HSAKMTAPI_table_t
     if n == 0 or (call == '-' and name != '-'):
       self.content += 'typedef struct {\n'
     if call != '-':
@@ -583,6 +589,7 @@ class API_DescrParser:
       self.content += '}\n'  
       self.content_cpp += 'inline std::ostream& operator<< (std::ostream& out, const HsaMemFlags& v) { out << "HsaMemFlags"; return out; }\n' 
 
+
   def gen_public_api(self, n, name, call, struct):
     if n == -1:
       self.content_cpp += 'extern "C" {\n'
@@ -616,13 +623,13 @@ else:
 
 descr = API_DescrParser(OUT, KFD_DIR, API_HEADERS_H, LICENSE)
 
-out_file = ROOT + OUT + '.h'
+out_file = ROOT + OUT
 print 'Generating "' + out_file + '"'
 f = open(out_file, 'w')
 f.write(descr.content[:-1])
 f.close()
 
-out_file = ROOT + OUT_CPP + '.cpp'
+out_file = ROOT + OUT_CPP
 print 'Generating "' + out_file + '"'
 f = open(out_file, 'w')
 f.write(descr.content_cpp[:-1])
