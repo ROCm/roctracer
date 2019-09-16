@@ -609,7 +609,7 @@ class API_DescrParser:
           self.content_cpp += struct['alst'][i].replace("[]","") 
         else:
           self.content_cpp += struct['alst'][i].replace("[]","") + ', '
-      self.content_cpp +=  ');} \n'
+      self.content_cpp +=  '); return HSAKMT_STATUS_SUCCESS;} \n'
 
 #############################################################
 # main
