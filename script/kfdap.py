@@ -38,7 +38,6 @@ def fatal(module, msg):
 
 # Get next text block
 def NextBlock(pos, record): 
-  print ("record and pos", record, pos);
   if len(record) == 0: return pos
 
   space_pattern = re.compile(r'(\s+)')
@@ -83,7 +82,6 @@ class API_TableParser:
 
     self.inp = open(header, 'r')
 
-    print ("NAME", name);
     self.beg_pattern = re.compile(name) 
     self.end_pattern = re.compile('.*\)\s*;\s*$'); 
     self.inc_pattern = re.compile('\s*#include\s+(.*)$');
@@ -123,20 +121,17 @@ class API_TableParser:
     self.full_fct={}
     self.includes_list=[]
     for line in self.inp.readlines():
-      print ("LINE before", line)
       m=self.is_include(line)
       if m:
-          print ("INCLUDE, FILE", line,m.group(1))
           self.includes_list.append(m.group(1))
       line = self.norm_line(line)
       line = self.fix_comment_line(line)
 
-      print ("LINE", line)
 
-      if cumulate == 1: record += " " + line; print ("after concat", record);
+      if cumulate == 1: record += " " + line; 
       else: record = line;
       if self.is_start(line): cumulate = 1; continue;
-      if self.is_end(line): record = self.remove_ret_line(record); print ("Pattern found", record); cumulate=0; active =1;
+      if self.is_end(line): record = self.remove_ret_line(record); cumulate=0; active =1;
 
       else: continue;
       if active != 0:
@@ -144,7 +139,6 @@ class API_TableParser:
         if m:
           mycall_full="void " +m.group(1)+' ('+m.group(2)+')'
           mycall=m.group(1)
-          print ("APPEND", mycall)
           self.full_fct[mycall]=mycall_full
           self.array.append(mycall) 
 
@@ -182,22 +176,17 @@ class API_DeclParser:
 
   # parse method args
   def get_args(self, record):
-    print ("RECORD", record);
     struct = {'ret': '', 'args': '', 'astr': {}, 'alst': [], 'tlst': []}
     record = re.sub(r'^\s+', r'', record)
     record = re.sub(r'\s*(\*+)\s*', r'\1 ', record)
     rind = NextBlock(0, record) 
     struct['ret'] = record[0:rind]
     pos = record.find('(')
-    print ("POS", pos)
     end = NextBlock(pos, record);
-    print ("POSEND", end)
     args = record[pos:end]
-    print ("ARGS", args)
     args = re.sub(r'^\(\s*', r'', args)
     args = re.sub(r'\s*\)$', r'', args)
     args = re.sub(r'\s*,\s*', r',', args)
-    print ("ARGSAFTER", args)
     struct['args'] = re.sub(r',', r', ', args)
     if args == "void":
       return struct
@@ -234,7 +223,6 @@ class API_DeclParser:
 
   # parse given api
   def parse(self, call, full_fct,includes_list):
-    print ("CALL, full_fct length", call, len(full_fct));
     if call in full_fct: 
       self.data[call] = self.get_args(full_fct[call])
     else:
@@ -242,7 +230,6 @@ class API_DeclParser:
 
   # parse given api
   def parse_old(self, call):
-    print ("CALL", call);
     record = ''
     active = 0
     found = 0
@@ -251,7 +238,6 @@ class API_DeclParser:
 
     self.inp.seek(0)
     for line in self.inp.readlines():
-      print ("LINE2", line);
       record += ' ' + line[:-1]
       record = re.sub(r'^\s*', r' ', record)
 
@@ -304,7 +290,6 @@ class API_DescrParser:
         api = API_TableParser(kfd_dir + header, name, full_fct, includes_list)
         full_fct = api.full_fct
         includes_list = api.includes_list
-        print ("SIZE", len(full_fct))
         api_list = api.array
         self.api_names.append(name)
         self.api_calls[name] = api_list
@@ -313,11 +298,9 @@ class API_DescrParser:
         ns_calls = []
 
       for call in api_list:
-        print ("CALL", call);
         if call in api_data:
           self.fatal("call '"  + call + "' is already found")
 
-      print ("DATA", api_data);
       API_DeclParser(kfd_dir + header, api_list, api_data, full_fct,includes_list)
 
       for call in api_list:
@@ -390,7 +373,6 @@ class API_DescrParser:
     for index in range(len(self.api_names)):
       last = (index == len(self.api_names) - 1)
       name = self.api_names[index]
-      print ("API", name)
 
       if n != 0:
         if gap == '': fun(n, name, '-', {})
@@ -408,7 +390,6 @@ class API_DescrParser:
     for index in range(len(self.api_names)):
       last = (index == len(self.api_names) - 1)
       name = self.api_names[index]
-      print ("API", name)
 
       if n != 0:
         if gap == '': fun(n, name, '-', {})
