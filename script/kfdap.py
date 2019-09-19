@@ -1,7 +1,7 @@
 #!/usr/bin/python
 import os, sys, re
 
-OUT='inc/kfd_prof_str.h' 
+OUT_H='inc/kfd_prof_str.h' 
 OUT_CPP='src/kfd/kfd_wrapper.cpp'
 API_HEADERS_H = ( 
   ('HSAKMTAPI', 'hsakmt.h'), 
@@ -621,9 +621,9 @@ else:
   ROOT = sys.argv[1] + '/'
   KFD_DIR = sys.argv[2] + '/'
 
-descr = API_DescrParser(OUT, KFD_DIR, API_HEADERS_H, LICENSE)
+descr = API_DescrParser(OUT_H, KFD_DIR, API_HEADERS_H, LICENSE)
 
-out_file = ROOT + OUT
+out_file = ROOT + OUT_H
 print 'Generating "' + out_file + '"'
 f = open(out_file, 'w')
 f.write(descr.content[:-1])
