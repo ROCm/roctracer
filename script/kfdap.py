@@ -72,10 +72,9 @@ class API_TableParser:
   def fatal(self, msg):
     fatal('API_TableParser', msg)
 
-  def __init__(self, header, name, full_fct, includes_list):
+  def __init__(self, header, name, full_fct):
     self.name = name
     self.full_fct = full_fct
-    self.includes_list = includes_list
 
     if not os.path.isfile(header):
       self.fatal("file '" + header + "' not found")
@@ -119,11 +118,7 @@ class API_TableParser:
     record = "";
     cumulate = 0;
     self.full_fct={}
-    self.includes_list=[]
     for line in self.inp.readlines():
-      m=self.is_include(line)
-      if m:
-          self.includes_list.append(m.group(1))
       line = self.norm_line(line)
       line = self.fix_comment_line(line)
 
@@ -148,7 +143,7 @@ class API_DeclParser:
   def fatal(self, msg):
     fatal('API_DeclParser', msg)
 
-  def __init__(self, header, array, data, full_fct, includes_list):
+  def __init__(self, header, array, data, full_fct):
     if not os.path.isfile(header):
       self.fatal("file '" + header + "' not found")
 
@@ -159,7 +154,7 @@ class API_DeclParser:
     for call in array:
       if call in data:
         self.fatal(call + ' is already found')
-      self.parse(call,full_fct,includes_list)
+      self.parse(call,full_fct)
 
   # check for start record
   def is_start(self, call, record):
@@ -222,43 +217,11 @@ class API_DeclParser:
     return struct
 
   # parse given api
-  def parse(self, call, full_fct,includes_list):
+  def parse(self, call, full_fct):
     if call in full_fct: 
       self.data[call] = self.get_args(full_fct[call])
     else:
       self.data[call] = self.get_args(call)
-
-  # parse given api
-  def parse_old(self, call):
-    record = ''
-    active = 0
-    found = 0
-    api_name = ''
-    prev_line = ''
-
-    self.inp.seek(0)
-    for line in self.inp.readlines():
-      record += ' ' + line[:-1]
-      record = re.sub(r'^\s*', r' ', record)
-
-      if active == 0:
-        if self.is_start(call, record):
-          active = 1
-          m = self.is_api(call, record)
-          if not m:
-            record = ' ' + prev_line + ' ' + record
-            m = self.is_api(call, record)
-            if not m:
-              self.fatal("bad api '" + line + "'")
-
-      if active == 1:
-        if self.is_end(record):
-          self.data[call] = self.get_args(record)
-          active = 0
-          found = 0
-
-      if active == 0: record = ''
-      prev_line = line
 
 #############################################################
 # API description parser class
@@ -277,41 +240,33 @@ class API_DescrParser:
     self.api_rettypes = set()
     self.api_id = {}
     
-    includes_list = []
     api_data = {}
     full_fct = {}
     api_list = []
     ns_calls = []
 
-    for i in range(0, 1):
-      (name, header) = api_headers[0]
-      
-      if i < 1:
-        api = API_TableParser(kfd_dir + header, name, full_fct, includes_list)
-        full_fct = api.full_fct
-        includes_list = api.includes_list
-        api_list = api.array
-        self.api_names.append(name)
-        self.api_calls[name] = api_list
+    (name, header) = api_headers[0]
+    api = API_TableParser(kfd_dir + header, name, full_fct)
+    full_fct = api.full_fct
+    api_list = api.array
+    self.api_names.append(name)
+    self.api_calls[name] = api_list
+
+    for call in api_list:
+      if call in api_data:
+        self.fatal("call '"  + call + "' is already found")
+
+    API_DeclParser(kfd_dir + header, api_list, api_data, full_fct)
+
+    for call in api_list:
+      if not call in api_data:
+        # Not-supported functions
+        ns_calls.append(call)
       else:
-        api_list = ns_calls
-        ns_calls = []
-
-      for call in api_list:
-        if call in api_data:
-          self.fatal("call '"  + call + "' is already found")
-
-      API_DeclParser(kfd_dir + header, api_list, api_data, full_fct,includes_list)
-
-      for call in api_list:
-        if not call in api_data:
-          # Not-supported functions
-          ns_calls.append(call)
-        else:
-          # API ID map
-          self.api_id[call] = 'KFD_API_ID_' + call
-          # Return types
-          self.api_rettypes.add(api_data[call]['ret'])
+        # API ID map
+        self.api_id[call] = 'KFD_API_ID_' + call
+        # Return types
+        self.api_rettypes.add(api_data[call]['ret'])
 
     self.api_rettypes.discard('void')
     self.api_data = api_data
