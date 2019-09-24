@@ -26,7 +26,7 @@ THE SOFTWARE.
 #include "inc/roctracer_roctx.h"
 #define PROF_API_IMPL 1
 #include "inc/roctracer_hsa.h"
-#include "inc/kfd_prof_str.h"
+#include "inc/roctracer_kfd.h"
 
 #include <atomic>
 #include <mutex>
@@ -692,13 +692,11 @@ static void roctracer_enable_callback_impl(
     void* user_data)
 {
   switch (domain) {
-#if 1
     case ACTIVITY_DOMAIN_KFD_API: {
       const bool succ = roctracer::KfdLoader::Instance().RegisterApiCallback(op, (void*)callback, user_data);
       if (succ == false) EXC_RAISING(ROCTRACER_STATUS_ERROR, "KFD RegisterApiCallback error");
       break;
     }
-#endif
     case ACTIVITY_DOMAIN_HSA_OPS: break;
     case ACTIVITY_DOMAIN_HSA_API: {
       roctracer::hsa_support::cb_table.set(op, callback, user_data);
@@ -763,13 +761,11 @@ static void roctracer_disable_callback_impl(
     uint32_t op)
 {
   switch (domain) {
-#if 1
     case ACTIVITY_DOMAIN_KFD_API: {
       const bool succ = roctracer::KfdLoader::Instance().RemoveApiCallback(op);
       if (succ == false) EXC_RAISING(ROCTRACER_STATUS_ERROR, "KFD RemoveApiCallback error");
       break;
     }
-#endif
     case ACTIVITY_DOMAIN_HSA_OPS: break;
     case ACTIVITY_DOMAIN_HSA_API: break;
     case ACTIVITY_DOMAIN_HCC_OPS: break;
