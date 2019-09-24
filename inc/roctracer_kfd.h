@@ -29,59 +29,13 @@ THE SOFTWARE.
 
 #include "roctracer.h"
 #include "hsakmt.h"
-
-namespace roctracer {
-namespace kfd_support {
-enum {
-  HSA_OP_ID_async_copy = 0
-};
-
-template <int N>
-class CbTable {
-  public:
-  typedef std::mutex mutex_t;
-
-  CbTable() {
-    std::lock_guard<mutex_t> lck(mutex_);
-    for (int i = 0; i < N; i++) {
-      callback_[i] = NULL;
-      arg_[i] = NULL;
-    }
-  }
-
-  void set(uint32_t id, activity_rtapi_callback_t callback, void* arg) {
-    std::lock_guard<mutex_t> lck(mutex_);
-    callback_[id] = callback;
-    arg_[id] = arg;
-  }
-
-  void get(uint32_t id, activity_rtapi_callback_t* callback, void** arg) {
-    std::lock_guard<mutex_t> lck(mutex_);
-    *callback = callback_[id];
-    *arg = arg_[id];
-  }
-
-  private:
-  activity_rtapi_callback_t callback_[N];
-  void* arg_[N];
-  mutex_t mutex_;
-};
-
-struct ops_properties_t {
-  activity_async_callback_t async_copy_callback_fun;
-  void* async_copy_callback_arg;
-};
-
-}; // namespace kfd_support
-
-typedef kfd_support::ops_properties_t kfd_ops_properties_t;
-}; 
+#include "inc/roctracer_kfd.h"
 
 namespace roctracer {
 namespace kfd_support {
 template <typename T>
 struct output_streamer {
-  inline static std::ostream& put(std::ostream& out, const T& v) { /* out << v;*/ return out; }
+  inline static std::ostream& put(std::ostream& out, const T& v) { return out; }
 };
 template<>
 struct output_streamer<bool> {
@@ -304,32 +258,8 @@ struct output_streamer<HsaMemFlags&> {
   inline static std::ostream& put(std::ostream& out, HsaMemFlags& v)
 {
     roctracer::kfd_support::output_streamer<uint32_t>::put(out,v.ui32.NonPaged);  
-    switch (v.ui32.CachePolicy){
-      case HSA_CACHING_CACHED:
-        out << "HSA_CACHING_CACHED = ";
-      case HSA_CACHING_NONCACHED:
-        out << "HSA_CACHING_NONCACHED = ";
-      case HSA_CACHING_WRITECOMBINED:
-        out << "HSA_CACHING_WRITECOMBINED = ";
-      case HSA_CACHING_RESERVED:
-        out << "HSA_CACHING_RESERVED = ";
-      //case HSA_CACHING_NUM_CACHING:
-        //out << "HSA_CACHING_NUM_CACHING = ";
-      //case HSA_CACHING_SIZE:
-        //out << "HSA_CACHING_SIZE = ";
-    }
     roctracer::kfd_support::output_streamer<uint32_t>::put(out,v.ui32.CachePolicy);  
     roctracer::kfd_support::output_streamer<uint32_t>::put(out,v.ui32.ReadOnly);  
-    switch(v.ui32.PageSize) {
-      case HSA_PAGE_SIZE_4KB:
-        out << "HSA_PAGE_SIZE_4KB = ";
-      case HSA_PAGE_SIZE_64KB:
-        out << "HSA_PAGE_SIZE_64KB = ";
-      case HSA_PAGE_SIZE_2MB:
-        out << "HSA_PAGE_SIZE_2MB = ";
-      case HSA_PAGE_SIZE_1GB:
-        out << "HSA_PAGE_SIZE_1GB = ";
-    }
     roctracer::kfd_support::output_streamer<uint32_t>::put(out,v.ui32.PageSize);  
     roctracer::kfd_support::output_streamer<uint32_t>::put(out,v.ui32.HostAccess);  
     roctracer::kfd_support::output_streamer<uint32_t>::put(out,v.ui32.NoSubstitute);  
@@ -366,7 +296,8 @@ struct output_streamer<HsaQueueReport&> {
 {
     roctracer::kfd_support::output_streamer<uint32_t>::put(out,v.VMID);         
     out << "<void *" << v.QueueAddress << ">"; 
-    roctracer::kfd_support::output_streamer<uint64_t>::put(out,v.QueueSize);    return out;
+    roctracer::kfd_support::output_streamer<uint64_t>::put(out,v.QueueSize);    
+    return out;
 }
 };
 template<>
@@ -409,14 +340,6 @@ template<>
 struct output_streamer<HsaNodeChange&> {
   inline static std::ostream& put(std::ostream& out, HsaNodeChange& v)
 {
-  switch(v.Flags) {
-    case HSA_EVENTTYPE_NODECHANGE_ADD:
-      out << "HSA_EVENTTYPE_NODECHANGE_ADD = ";
-    case HSA_EVENTTYPE_NODECHANGE_REMOVE:
-      out << "HSA_EVENTTYPE_NODECHANGE_REMOVE = ";
-    case HSA_EVENTTYPE_NODECHANGE_SIZE:
-      out << "HSA_EVENTTYPE_NODECHANGE_SIZE = ";
-  }
   roctracer::kfd_support::output_streamer<uint32_t>::put(out,v.Flags);
   return out;
 }
@@ -426,23 +349,7 @@ struct output_streamer<HsaDeviceStateChange&> {
   inline static std::ostream& put(std::ostream& out, HsaDeviceStateChange& v)
 {
   roctracer::kfd_support::output_streamer<uint32_t>::put(out,v.NodeId);     
-  switch(v.Device) {
-    case HSA_DEVICE_CPU:
-      out << "HSA_DEVICE_CPU = ";
-    case HSA_DEVICE_GPU:
-      out << "HSA_DEVICE_GPU = ";
-    case MAX_HSA_DEVICE:
-      out << "MAX_HSA_DEVICE = ";
-  }
   roctracer::kfd_support::output_streamer<uint32_t>::put(out,v.Device);
-  switch(v.Flags) {
-    case HSA_EVENTTYPE_DEVICESTATUSCHANGE_START:
-      out << "HSA_EVENTTYPE_DEVICESTATUSCHANGE_START = ";
-    case HSA_EVENTTYPE_DEVICESTATUSCHANGE_STOP:
-      out << "HSA_EVENTTYPE_DEVICESTATUSCHANGE_STOP = ";
-    case HSA_EVENTTYPE_DEVICESTATUSCHANGE_SIZE:
-      out << "HSA_EVENTTYPE_DEVICESTATUSCHANGE_SIZE = ";
-  }
   roctracer::kfd_support::output_streamer<uint32_t>::put(out,v.Flags);
   return out;
 }
@@ -586,5 +493,7 @@ struct output_streamer<HsaPmcTraceRoot&> {
 };
 // end ostream ops for KFD
 };};
+
+#include <inc/kfd_prof_str.h>
 
 #endif // INC_ROCTRACER_KFD_H_
