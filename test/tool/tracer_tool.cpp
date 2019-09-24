@@ -32,7 +32,6 @@ THE SOFTWARE.
 #include <inc/roctracer_hip.h>
 #include <inc/roctracer_hcc.h>
 #include <inc/roctracer_kfd.h>
-#include <inc/kfd_prof_str.h>
 #include <inc/roctracer_hcc.h>
 #include <inc/ext/hsa_rt_utils.hpp>
 #include <src/core/loader.h>
@@ -322,10 +321,8 @@ void hcc_activity_callback(const char* begin, const char* end, void* arg) {
         record->begin_ns, record->end_ns, record->device_id, record->queue_id, name, record->correlation_id);
       fflush(hcc_activity_file_handle);
     } else {
-#if 0
       fprintf(hip_api_file_handle, "%lu:%lu %u:%u %s()\n",
         record->begin_ns, record->end_ns, record->process_id, record->thread_id, name);
-#endif
     }
     ROCTRACER_CALL(roctracer_next_record(record, &record));
   }
@@ -467,9 +464,10 @@ extern "C" PUBLIC_API bool OnLoad(HsaApiTable* table, uint64_t runtime_version, 
         hsa_api_vec = api_vec;
       }
 
+
       if (name == "KFD") {
         found = true;
-        trace_kfd |= true;
+        trace_kfd = true;
         kfd_api_vec = api_vec;
       }
       if (name == "GPU") {
@@ -514,6 +512,7 @@ extern "C" PUBLIC_API bool OnLoad(HsaApiTable* table, uint64_t runtime_version, 
     // initialize KFD tracing
     roctracer_set_properties(ACTIVITY_DOMAIN_KFD_API, (void*)table);
 
+    printf("ROCTracer (pid=%d): ", (int)GetPid()); fflush(stdout);
     printf("    KFD-trace(");
     if (kfd_api_vec.size() != 0) {
       for (unsigned i = 0; i < kfd_api_vec.size(); ++i) {
