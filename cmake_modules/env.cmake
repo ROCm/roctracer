@@ -14,6 +14,7 @@ add_definitions ( -DLITTLEENDIAN_CPU=1 )
 add_definitions ( -DHSA_LARGE_MODEL= )
 add_definitions ( -DHSA_DEPRECATED= )
 add_definitions ( -D__HIP_PLATFORM_HCC__ )
+add_definitions ( -DPROF_API_IMPL=1 )
 
 ## Linux Compiler options
 set ( CMAKE_CXX_FLAGS "-std=c++11")
@@ -28,6 +29,7 @@ set ( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fmerge-all-constants" )
 set ( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fms-extensions" )
 set ( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fmerge-all-constants" )
 set ( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC" )
+set ( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unused-function" )
 
 set ( CMAKE_SHARED_LINKER_FLAGS "-Wl,-Bdynamic -Wl,-z,noexecstack" )
 
