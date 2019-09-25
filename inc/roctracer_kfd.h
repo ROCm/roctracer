@@ -29,7 +29,6 @@ THE SOFTWARE.
 
 #include "roctracer.h"
 #include "hsakmt.h"
-#include "inc/roctracer_kfd.h"
 
 namespace roctracer {
 namespace kfd_support {
