@@ -83,7 +83,6 @@ class API_TableParser:
 
     self.beg_pattern = re.compile(name) 
     self.end_pattern = re.compile('.*\)\s*;\s*$'); 
-    self.inc_pattern = re.compile('\s*#include\s+(.*)$');
     self.array = []
     self.parse()
 
@@ -109,9 +108,6 @@ class API_TableParser:
   def is_entry(self, record):
     return re.match(r'^\s*HSAKMTAPI\s*(.*)\s*\((.*)\)', record) 
 
-  def is_include(self, record):
-    return self.inc_pattern.search(record)
-
   # parse method
   def parse(self):
     active = 0
@@ -121,7 +117,6 @@ class API_TableParser:
     for line in self.inp.readlines():
       line = self.norm_line(line)
       line = self.fix_comment_line(line)
-
 
       if cumulate == 1: record += " " + line; 
       else: record = line;
@@ -406,7 +401,7 @@ class API_DescrParser:
       ret_type = struct['ret']
       self.content_h += ret_type + ' ' + call + '_callback(' + struct['args'] + ') {\n'  # 'static '  + 
       if call == 'hsaKmtOpenKFD':
-        self.content_h += '  if (' + name + '_saved == NULL) intercept_KFDApiTable();\n'
+        self.content_h += '  if (' + name + '_table == NULL) intercept_KFDApiTable();\n'
       self.content_h += '  kfd_api_data_t api_data{};\n'
       for var in struct['alst']:
         self.content_h += '  api_data.args.' + call + '.' + var.replace("[]","") + ' = ' + var.replace("[]","") + ';\n'
@@ -417,7 +412,7 @@ class API_DescrParser:
       self.content_h += '  if (api_callback_fun) api_callback_fun(ACTIVITY_DOMAIN_KFD_API, ' + call_id + ', &api_data, api_callback_arg);\n'
       if ret_type != 'void':
         self.content_h += '  ' + ret_type + ' ret = '
-      tmp_str = '  ' + name + '_saved->' + call + '_fn(' + ', '.join(struct['alst']) + ');\n'
+      tmp_str = '  ' + name + '_table->' + call + '_fn(' + ', '.join(struct['alst']) + ');\n'
       self.content_h += tmp_str.replace("[]","")
       if ret_type != 'void':
         self.content_h += '  api_data.' + ret_type + '_retval = ret;\n'
@@ -427,9 +422,10 @@ class API_DescrParser:
         self.content_h += '  return ret;\n'
       self.content_h += '}\n'
 
+  # Generates API intercepting table struct definition
   def gen_intercept_decl(self, n, name, call, struct):
     if n > 0 and call == '-':
-      self.content_h += '} HSAKMTAPI_saved_t;\n' #was HSAKMTAPI_table_t
+      self.content_h += '} HSAKMTAPI_table_t;\n' #was HSAKMTAPI_table_t
     if n == 0 or (call == '-' and name != '-'):
       self.content_h += 'typedef struct {\n'
     if call != '-':
@@ -440,13 +436,13 @@ class API_DescrParser:
     if n > 0 and call == '-':
       self.content_h += '};\n'
     if n == 0 or (call == '-' and name != '-'):
-      self.content_h += name + '_saved_t* ' + name + '_saved = NULL;\n'
+      self.content_h += name + '_table_t* ' + name + '_table = NULL;\n'
       self.content_h += 'void intercept_' + 'KFDApiTable' + '(void) {\n'
-      self.content_h += '  ' + name + '_saved = new ' + name + '_saved_t{}' + ';\n'
+      self.content_h += '  ' + name + '_table = new ' + name + '_table_t{}' + ';\n'
 
     if call != '-':
-      self.content_h += '  typedef decltype(' + name + '_saved_t::' + call + '_fn) ' + call + '_t;\n'
-      self.content_h += '  ' + name + '_saved->' + call + '_fn = (' + call + '_t)' + 'dlsym(RTLD_NEXT,\"'  + call + '\");\n' 
+      self.content_h += '  typedef decltype(' + name + '_table_t::' + call + '_fn) ' + call + '_t;\n'
+      self.content_h += '  ' + name + '_table->' + call + '_fn = (' + call + '_t)' + 'dlsym(RTLD_NEXT,\"'  + call + '\");\n' 
 
   # generate API name function
   def gen_get_name(self, n, name, call, struct):
