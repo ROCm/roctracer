@@ -32,7 +32,6 @@ THE SOFTWARE.
 #include <inc/roctracer_hip.h>
 #include <inc/roctracer_hcc.h>
 #include <inc/roctracer_kfd.h>
-#include <inc/roctracer_hcc.h>
 #include <inc/ext/hsa_rt_utils.hpp>
 #include <src/core/loader.h>
 #include <src/core/trace_buffer.h>
@@ -90,7 +89,6 @@ void fatal(const std::string msg) {
   fflush(stderr);
   abort();
 }
-
 
 // KFD API callback function
 void kfd_api_callback(
@@ -463,8 +461,6 @@ extern "C" PUBLIC_API bool OnLoad(HsaApiTable* table, uint64_t runtime_version, 
         trace_hsa_api = true;
         hsa_api_vec = api_vec;
       }
-
-
       if (name == "KFD") {
         found = true;
         trace_kfd = true;
@@ -506,13 +502,11 @@ extern "C" PUBLIC_API bool OnLoad(HsaApiTable* table, uint64_t runtime_version, 
     printf(")\n");
   }
 
-
   if (trace_kfd) {
     kfd_api_file_handle = open_output_file(output_prefix, "kfd_api_trace.txt");
     // initialize KFD tracing
     roctracer_set_properties(ACTIVITY_DOMAIN_KFD_API, (void*)table);
 
-    printf("ROCTracer (pid=%d): ", (int)GetPid()); fflush(stdout);
     printf("    KFD-trace(");
     if (kfd_api_vec.size() != 0) {
       for (unsigned i = 0; i < kfd_api_vec.size(); ++i) {
