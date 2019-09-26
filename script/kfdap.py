@@ -305,6 +305,7 @@ class API_DescrParser:
 
     self.content_cpp += "// automatically generated\n\n" + license + '\n'
     self.content_cpp += "/////////////////////////////////////////////////////////////////////////////\n\n"
+    self.content_cpp += '#define PROF_API_IMPL 1\n'
     self.content_cpp += '#include \"kfd_prof_str.h\"\n'
 
     self.add_section('API output stream', '    ', self.gen_out_stream)
