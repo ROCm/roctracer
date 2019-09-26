@@ -505,7 +505,7 @@ extern "C" PUBLIC_API bool OnLoad(HsaApiTable* table, uint64_t runtime_version, 
   if (trace_kfd) {
     kfd_api_file_handle = open_output_file(output_prefix, "kfd_api_trace.txt");
     // initialize KFD tracing
-    roctracer_set_properties(ACTIVITY_DOMAIN_KFD_API, (void*)table);
+    roctracer_set_properties(ACTIVITY_DOMAIN_KFD_API, NULL);
 
     printf("    KFD-trace(");
     if (kfd_api_vec.size() != 0) {
