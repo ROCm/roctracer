@@ -33,5 +33,5 @@ set ( ROCTX_LIB_SRC
   ${LIB_DIR}/roctx/roctx_intercept.cpp
 )
 add_library ( ${ROCTX_LIB} SHARED ${ROCTX_LIB_SRC} )
-target_include_directories ( ${ROCTX_LIB} PRIVATE ${LIB_DIR} ${ROOT_DIR} ${ROOT_DIR}/inc ${HSA_RUNTIME_INC_PATH} ${HSA_RUNTIME_HSA_INC_PATH} ${HSA_KMT_INC_PATH} )
+target_include_directories ( ${ROCTX_LIB} PRIVATE ${LIB_DIR} ${ROOT_DIR} ${ROOT_DIR}/inc ${HSA_RUNTIME_INC_PATH} ${HSA_RUNTIME_HSA_INC_PATH} )
 target_link_libraries( ${ROCTX_LIB} PRIVATE c stdc++ )
