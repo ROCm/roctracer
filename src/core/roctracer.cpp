@@ -750,7 +750,6 @@ PUBLIC_API roctracer_status_t roctracer_enable_callback(
   for (uint32_t domain = 0; domain < ACTIVITY_DOMAIN_NUMBER; domain++) {
     const uint32_t op_num = get_op_num(domain);
     for (uint32_t op = 0; op < op_num; op++) roctracer_enable_callback_impl(domain, op, callback, user_data);
-    std::cout << "done" << std::endl;
   }
   API_METHOD_SUFFIX
 }
