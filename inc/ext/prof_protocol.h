@@ -59,7 +59,7 @@ typedef enum {
 typedef uint64_t activity_correlation_id_t;
 
 // Activity record type
-struct activity_record_t {
+typedef struct activity_record_t {
     uint32_t domain;                               // activity domain id
     activity_kind_t kind;                          // activity kind
     activity_op_t op;                              // activity op
@@ -80,7 +80,7 @@ struct activity_record_t {
       };
     };
     size_t bytes;                                  // data size bytes
-};
+} activity_record_t;
 
 // Activity sync calback type
 typedef activity_record_t* (*activity_sync_callback_t)(uint32_t cid, activity_record_t* record, const void* data, void* arg);

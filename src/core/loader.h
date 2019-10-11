@@ -29,7 +29,7 @@ class BaseLoader : public T {
     return f;
   }
 
-  static inline loader_t& Instance(const bool& preload = false) {
+  static inline loader_t& Instance(const bool& preload = true) {
     loader_t* obj = instance_.load(std::memory_order_acquire);
     if (obj == NULL) {
       std::lock_guard<mutex_t> lck(mutex_);
@@ -168,11 +168,11 @@ typedef BaseLoader<RocTxApi> RocTxLoader;
 #define LOADER_INSTANTIATE() \
   template<class T> typename roctracer::BaseLoader<T>::mutex_t roctracer::BaseLoader<T>::mutex_; \
   template<class T> std::atomic<roctracer::BaseLoader<T>*> roctracer::BaseLoader<T>::instance_{}; \
-  template<class T> const bool roctracer::BaseLoader<T>::strong_ld_check_ = false;
+  template<class T> const bool roctracer::BaseLoader<T>::strong_ld_check_ = true;
   template<> const char* roctracer::HipLoader::lib_name_ = "libhip_hcc.so"; \
   template<> const char* roctracer::HccLoader::lib_name_ = "libmcwamp_hsa.so"; \
   template<> const char* roctracer::KfdLoader::lib_name_ = "libkfdwrapper64.so"; \
   template<> const char* roctracer::RocTxLoader::lib_name_ = "libroctx64.so"; \
-  template<> const bool roctracer::RocTxLoader::strong_ld_check_ = false;
+  template<> const bool roctracer::RocTxLoader::strong_ld_check_ = true;
 
 #endif // SRC_CORE_LOADER_H_
