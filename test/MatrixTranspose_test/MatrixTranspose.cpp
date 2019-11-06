@@ -308,9 +308,6 @@ void init_tracing() {
 // Start tracing routine
 void start_tracing() {
   std::cout << "# START (" << iterations << ") #############################" << std::endl << std::flush;
-  // Start
-  if ((iterations & 1) == 1) roctracer_start();
-  else roctracer_stop();
 }
 
 // Stop tracing routine
