@@ -1,7 +1,7 @@
 ROOT_PATH = ../..
 LIB_PATH  = $(ROOT_PATH)/build
-ROC_LIBS  = -L$(LIB_PATH) -lroctracer64 -lroctx64
-export LD_LIBRARY_PATH=$(LIB_PATH)
+ROC_LIBS  = -Wl,--rpath,${LIB_PATH} $(LIB_PATH)/libroctracer64.so $(LIB_PATH)/libroctx64.so
+HSA_KMT_INC_PATH ?= /opt/rocm/include
 HIP_VDI ?= 0
 ITERATIONS ?= 100
 
