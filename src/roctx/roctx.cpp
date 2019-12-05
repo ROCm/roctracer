@@ -64,9 +64,6 @@ THE SOFTWARE.
 
 static thread_local std::stack<std::string> message_stack;
 
-static inline uint32_t GetPid() { return syscall(__NR_getpid); }
-static inline uint32_t GetTid() { return syscall(__NR_gettid); }
-
 ////////////////////////////////////////////////////////////////////////////////
 // Library errors enumaration
 typedef enum {
