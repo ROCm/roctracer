@@ -284,6 +284,7 @@ typedef std::map<activity_correlation_id_t, activity_correlation_id_t> correlati
 typedef std::mutex correlation_id_mutex_t;
 correlation_id_map_t* correlation_id_map = NULL;
 correlation_id_mutex_t correlation_id_mutex;
+bool correlation_id_wait = true;
 
 static thread_local std::stack<activity_correlation_id_t> external_id_stack;
 
@@ -296,6 +297,7 @@ static inline void CorrelationIdRegistr(const activity_correlation_id_t& correla
 
 static inline activity_correlation_id_t CorrelationIdLookup(const activity_correlation_id_t& correlation_id) {
   auto it = correlation_id_map->find(correlation_id);
+  if (correlation_id_wait) while (it == correlation_id_map->end()) it = correlation_id_map->find(correlation_id);
   if (it == correlation_id_map->end()) EXC_ABORT(ROCTRACER_STATUS_ERROR, "HCC activity id lookup failed(" << correlation_id << ")");
   return it->second;
 }
@@ -829,6 +831,10 @@ static roctracer_status_t roctracer_enable_activity_fun(
     case ACTIVITY_DOMAIN_KFD_API: break;
     case ACTIVITY_DOMAIN_HCC_OPS: {
       if (roctracer::HccLoader::GetRef() == NULL) {
+        if (getenv("ROCP_HCC_CORRID_NOWAIT") != NULL) {
+          roctracer::correlation_id_wait = false;
+          fprintf(stdout, "roctracer: HCC correlation ID wait disabled\n"); fflush(stdout);
+        }
         roctracer::HccLoader::Instance().InitActivityCallback((void*)roctracer::HCC_ActivityIdCallback,
                                                               (void*)roctracer::HCC_AsyncActivityCallback,
                                                               (void*)pool);
