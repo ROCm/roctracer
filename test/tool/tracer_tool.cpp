@@ -554,15 +554,15 @@ void close_output_file(FILE* file_handle) {
   if ((file_handle != NULL) && (file_handle != stdout)) fclose(file_handle);
 }
 
+// tool library is loaded
+static bool is_loaded = false;
+
 // tool unload method
 void tool_unload() {
-  static bool is_unloaded = false;
-  ONLOAD_TRACE("begin, unloaded(" << is_unloaded << ")");
+  ONLOAD_TRACE("begin, loaded(" << is_loaded << ")");
 
-  if (is_unloaded == true) return;
-  is_unloaded = true;
-
-  roctracer_unload();
+  if (is_loaded == false) return;
+  is_loaded = false;
 
   if (trace_roctx) {
     ROCTRACER_CALL(roctracer_disable_domain_callback(ACTIVITY_DOMAIN_ROCTX));
@@ -586,7 +586,6 @@ void tool_unload() {
     ROCTRACER_CALL(roctracer_disable_domain_activity(ACTIVITY_DOMAIN_HIP_API));
     ROCTRACER_CALL(roctracer_disable_domain_activity(ACTIVITY_DOMAIN_HCC_OPS));
     ROCTRACER_CALL(roctracer_flush_activity());
-    ROCTRACER_CALL(roctracer_close_pool());
 
     hip_api_trace_buffer.Flush();
     if (hip_api_file_handle) close_output_file(hip_api_file_handle);
@@ -603,11 +602,12 @@ void tool_unload() {
 
 // tool load method
 void tool_load() {
-  static bool is_loaded = false;
   ONLOAD_TRACE("begin, loaded(" << is_loaded << ")");
 
   if (is_loaded == true) return;
   is_loaded = true;
+
+  roctracer::TraceBufferBase::StartWorkerThreadAll();
 
   // Output file
   const char* output_prefix = getenv("ROCP_OUTPUT_DIR");
@@ -788,9 +788,6 @@ void tool_load() {
     printf(")\n");
   }
 
-  roctracer::TraceBufferBase::StartWorkerThreadAll();
-  roctracer_load();
-
   ONLOAD_TRACE_END();
 }
 
@@ -851,7 +848,8 @@ extern "C" PUBLIC_API bool OnLoad(HsaApiTable* table, uint64_t runtime_version, 
     roctracer_properties_t properties{};
     properties.buffer_size = 0x80000;
     properties.buffer_callback_fun = hcc_activity_callback;
-    ROCTRACER_CALL(roctracer_open_pool(&properties));
+    if (roctracer_default_pool() == NULL) ROCTRACER_CALL(roctracer_open_pool(&properties));
+
     if (trace_hip_api) {
       hip_api_file_handle = open_output_file(output_prefix, "hip_api_trace.txt");
       ROCTRACER_CALL(roctracer_enable_domain_callback(ACTIVITY_DOMAIN_HIP_API, hip_api_callback, NULL));
