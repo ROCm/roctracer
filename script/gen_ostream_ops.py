@@ -30,7 +30,7 @@ LICENSE = \
 HEADER = \
 'template <typename T>\n' + \
 'struct output_streamer {\n' + \
-'  inline static std::ostream& put(std::ostream& out, const T& v) { out << "WIP"; return out; }\n' + \
+'  inline static std::ostream& put(std::ostream& out, const T& v) { return out; }\n' + \
 '};\n' + \
 'template<>\n' + \
 'struct output_streamer<void*> {\n' + \
