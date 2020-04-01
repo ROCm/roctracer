@@ -26,53 +26,70 @@ import argparse
 
 events_count = {}
 events_order = {}
-trace2level = {}
-trace2level_filename = 'test/tests_trace_cmp_levels.txt'
+trace2info = {}
+trace2info_filename = 'test/tests_trace_cmp_levels.txt'
 
 def parse_trace_levels(filename):
     f = open(filename)
-    trace2level = {}
+    trace2info = {}
     for line in f:
-        item = line.split(' ', 1)
-        trace2level[item[0]] = eval(item[1])
-    return trace2level
+        if re.match('^#.*',line):
+          print 'skipping comment line' + line
+          continue
+        trace_name, comp_level, no_events_cnt, events2ignore = line.split(' ')
+        trace2info[trace_name] = (eval(comp_level),no_events_cnt,events2ignore)
+    return trace2info
 
 # check trace againt golden reference and returns 0 for match, 1 for mismatch
-def check_trace_status(tracename):
-  trace2level = parse_trace_levels(trace2level_filename)
+def check_trace_status(tracename,verbose):
+  trace2info = parse_trace_levels(trace2info_filename)
 
   trace = 'test/' + tracename + '.txt'
   rtrace = tracename + '.txt'
-  if os.path.basename(tracename) in trace2level:
-    trace_level = trace2level[os.path.basename(tracename)]
-    print 'Trace comparison for ' + os.path.basename(tracename) + ' is at level ' + str(trace_level)
+  if os.path.basename(tracename) in trace2info.keys():
+    (trace_level,no_events_cnt,events2ignore) = trace2info[os.path.basename(tracename)]
+    #trace_level = trace2info[os.path.basename(tracename)]
+    print 'Trace comparison for ' + os.path.basename(tracename) + ' at level ' + str(trace_level) + ' with ' + no_events_cnt + ' and events_to_ignore list ' + events2ignore
   else:
-    print 'Trace ' + os.path.basename(tracename) + ' not found in ' + trace2level_filename + ', defaulting to level 0'
+    print 'Trace ' + os.path.basename(tracename) + ' not found in ' + trace2info_filename + ', defaulting to level 0 i.e. no trace comparison'
     return 1
 
   if trace_level == 1:
-    cnt_r = gen_events_info(rtrace,'cnt')
-    cnt = gen_events_info(trace,'cnt')
+    cnt_r = gen_events_info(rtrace,'cnt',no_events_cnt,events2ignore,verbose)
+    cnt = gen_events_info(trace,'cnt',no_events_cnt,events2ignore,verbose)
     if cnt_r == cnt:
+      if verbose:
+        print 'PASSED!'
       return 0
     else:
+      if verbose:
+        print 'FAILED!'
       return 1
   elif trace_level == 2:
-    cnt_r = gen_events_info(rtrace,'or')
-    cnt = gen_events_info(trace,'or')
+    cnt_r = gen_events_info(rtrace,'or',no_events_cnt,events2ignore,verbose)
+    cnt = gen_events_info(trace,'or',no_events_cnt,events2ignore,verbose)
     if cnt_r == cnt:
+      if verbose:
+        print 'PASSED!'
       return 0
     else:
+      if verbose:
+        print 'FAILED!'
       return 1
   elif trace_level == 3:
     if filecmp.cmp(trace,rtrace):
+      if verbose:
+        print 'PASSED!'
       return 0
     else:
+      print 'FAILED!'
+      os.system('/usr/bin/diff ' + trace + ' ' + rtrace)
+      print diff_strs(cnt,cnt_r)
       return 1
 
 #Parses roctracer trace file for regression purpose
 #and generates events count per event (when cnt is on) or events order per tid (when order is on)
-def gen_events_info(tracefile, metric):
+def gen_events_info(tracefile, metric,no_events_cnt,events2ignore,verbose):
   events_count = {}
   events_order = {}
   res=''
@@ -105,31 +122,41 @@ def gen_events_info(tracefile, metric):
       if m3:
         event = m3.group(1)
         tid = start_id
-      if metric == 'cnt' and (m or m2 or m3):
+      if metric == 'cnt' and (m or m2 or m3) and event not in events2ignore:
         if event in events_count:
           events_count[event] = events_count[event] + 1
         else:
           events_count[event] = 1
-      if metric == 'or' and (m or m2 or m3):
+      if metric == 'or' and (m or m2 or m3) and event not in events2ignore:
         if tid in events_order.keys():
           events_order[tid].append(event)
         else:
           events_order[tid] = [event]
   if metric == 'cnt':
     for event,count in events_count.items():
-      res = res + event + " : count " + str(count) + '\n'
+      re_genre = r'{}'.format(no_events_cnt)
+      if re.search(re_genre,event): # or no_events_cnt == "N/A": #'hsa_agent.*|hsa_amd.*|hsa_signal.*|hsa_sys.*'
+        #if verbose:
+        #  print 'ignoring count for event ' + event
+        res = res + event + '\n'
+      else:
+        #print 'not ignoring count for event ' + event + 'regex "' + no_events_cnt + '"'
+        res = res + event + " : count " + str(count) + '\n'
   if metric == 'or':
     for tid in sorted (events_order.keys()) :
       #res = res + 'Events for tid ' + tid + ' are:\n' + str(events_order[tid]) + '\n'
       res = res + str(events_order[tid])
+  if verbose:
+    print res
   return res
 
 
 parser = argparse.ArgumentParser(description='check_trace.py: check a trace aainst golden ref. Returns 0 for success, 1 for failure')
 requiredNamed = parser.add_argument_group('Required arguments')
 requiredNamed.add_argument('-in', metavar='file', help='Name of trace to be checked', required=True)
+requiredNamed.add_argument('-v', action='store_true', help='debug info', required=False)
 args = vars(parser.parse_args())
 
 if __name__ == '__main__':
-    sys.exit(check_trace_status(args['in']))
+    sys.exit(check_trace_status(args['in'],args['v']))
 
