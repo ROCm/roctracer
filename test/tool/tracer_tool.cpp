@@ -410,25 +410,23 @@ void hip_api_flush_cb(hip_api_trace_entry_t* entry) {
       case HIP_API_ID_hipMemcpy:
         fprintf(hip_api_file_handle, "%s",oss.str().c_str());
         oss.str("");
-        oss << "hipMemcpy(dst=";
+        oss << "(dst(";
         typedef decltype(data->args.hipMemcpy.dst) arg_val_type_dst;
         roctracer::hip_support::output_streamer<arg_val_type_dst>::put(oss, data->args.hipMemcpy.dst);
-        oss <<  ", src=";
+        oss <<  ") src(";
         typedef decltype(data->args.hipMemcpy.src) arg_val_type_src;
         roctracer::hip_support::output_streamer<arg_val_type_src>::put(oss, data->args.hipMemcpy.src);
-        oss <<  ", sizeBytes=";
+        oss <<  ") size(";
         typedef decltype(data->args.hipMemcpy.sizeBytes) arg_val_type_size;
         roctracer::hip_support::output_streamer<arg_val_type_size>::put(oss, data->args.hipMemcpy.sizeBytes);
-        oss <<  ", kind=";
-        typedef decltype(data->args.hipMemcpy.kind) arg_val_type_kind;
-        roctracer::hip_support::output_streamer<arg_val_type_kind>::put(oss, data->args.hipMemcpy.kind);
-        oss <<  ")\n";
+        oss <<  ") kind(" << data->args.hipMemcpy.kind;
+        oss <<  "))\n";//")\n";
         fprintf(hip_api_file_handle, "%s",oss.str().c_str());
         break;
       case HIP_API_ID_hipMalloc:
         fprintf(hip_api_file_handle, "%s(ptr(%p) ",oss.str().c_str(),entry->ptr);
         oss.str("");
-        oss << "hipMalloc(size=";
+        oss << "size(";
         typedef decltype(data->args.hipMalloc.size) arg_val_type_size;
         roctracer::hip_support::output_streamer<arg_val_type_size>::put(oss, data->args.hipMalloc.size);
         oss <<  "))\n";
@@ -437,10 +435,10 @@ void hip_api_flush_cb(hip_api_trace_entry_t* entry) {
       case HIP_API_ID_hipFree:
         fprintf(hip_api_file_handle, "%s",oss.str().c_str());
         oss.str("");
-        oss << "hipFree(ptr=";
+        oss << "(ptr(";
         typedef decltype(data->args.hipFree.ptr) arg_val_type_ptr;
         roctracer::hip_support::output_streamer<arg_val_type_ptr>::put(oss, data->args.hipFree.ptr);
-        oss <<  ")\n";
+        oss <<  "))\n";
         fprintf(hip_api_file_handle, "%s",oss.str().c_str());
         break;
       case HIP_API_ID_hipModuleLaunchKernel:
@@ -450,9 +448,7 @@ void hip_api_flush_cb(hip_api_trace_entry_t* entry) {
 #endif
         fprintf(hip_api_file_handle, "%s(kernel(%s) ", oss.str().c_str(), cxx_demangle(entry->name));
         oss.str("");
-        oss << "hipHccModuleLaunchKernel(stream name=";
-        typedef decltype(data->args.hipModuleLaunchKernel.stream) arg_val_type_stream;
-        roctracer::hip_support::output_streamer<arg_val_type_stream>::put(oss, data->args.hipModuleLaunchKernel.stream);
+        oss << "stream(" << data->args.hipModuleLaunchKernel.stream;
         oss <<  "))\n";
         fprintf(hip_api_file_handle, "%s",oss.str().c_str());
         break;
