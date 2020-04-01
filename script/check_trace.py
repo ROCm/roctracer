@@ -34,7 +34,6 @@ def parse_trace_levels(filename):
     trace2info = {}
     for line in f:
         if re.match('^#.*',line):
-          print 'skipping comment line' + line
           continue
         trace_name, comp_level, no_events_cnt, events2ignore = line.split(' ')
         trace2info[trace_name] = (eval(comp_level),no_events_cnt,events2ignore)
@@ -48,10 +47,7 @@ def check_trace_status(tracename,verbose):
   rtrace = tracename + '.txt'
   if os.path.basename(tracename) in trace2info.keys():
     (trace_level,no_events_cnt,events2ignore) = trace2info[os.path.basename(tracename)]
-    #trace_level = trace2info[os.path.basename(tracename)]
-    print 'Trace comparison for ' + os.path.basename(tracename) + ' at level ' + str(trace_level) + ' with ' + no_events_cnt + ' and events_to_ignore list ' + events2ignore
   else:
-    print 'Trace ' + os.path.basename(tracename) + ' not found in ' + trace2info_filename + ', defaulting to level 0 i.e. no trace comparison'
     return 1
 
   if trace_level == 1:
@@ -136,15 +132,11 @@ def gen_events_info(tracefile, metric,no_events_cnt,events2ignore,verbose):
     for event,count in events_count.items():
       re_genre = r'{}'.format(no_events_cnt)
       if re.search(re_genre,event): # or no_events_cnt == "N/A": #'hsa_agent.*|hsa_amd.*|hsa_signal.*|hsa_sys.*'
-        #if verbose:
-        #  print 'ignoring count for event ' + event
         res = res + event + '\n'
       else:
-        #print 'not ignoring count for event ' + event + 'regex "' + no_events_cnt + '"'
         res = res + event + " : count " + str(count) + '\n'
   if metric == 'or':
     for tid in sorted (events_order.keys()) :
-      #res = res + 'Events for tid ' + tid + ' are:\n' + str(events_order[tid]) + '\n'
       res = res + str(events_order[tid])
   if verbose:
     print res
