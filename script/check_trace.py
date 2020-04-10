@@ -33,10 +33,24 @@ def parse_trace_levels(filename):
     f = open(filename)
     trace2info = {}
     for line in f:
-        if re.match('^#.*',line):
-          continue
-        trace_name, comp_level, no_events_cnt, events2ignore = line.split(' ')
-        trace2info[trace_name] = (eval(comp_level),no_events_cnt,events2ignore)
+        count_once = 0
+        lis = line.split(' ')
+        trace_name = lis[0]
+        comp_level = lis[1]
+        no_events_cnt = ''
+        events2ignore = ''
+        for l in lis:
+          if no_events_cnt == ' ':
+            no_events_cnt = l 
+          if events2ignore == ' ':
+            events2ignore = l 
+          if l == '-no-event-count':
+            no_events_cnt = ' '
+          if l == '-ignore-event':
+            events2ignore = ' '
+          if l.rstrip('\n') == '-count_once':
+            count_once = 1
+        trace2info[trace_name] = (eval(comp_level),no_events_cnt,events2ignore,count_once)
     return trace2info
 
 # check trace againt golden reference and returns 0 for match, 1 for mismatch
@@ -46,13 +60,15 @@ def check_trace_status(tracename,verbose):
   trace = 'test/' + tracename + '.txt'
   rtrace = tracename + '.txt'
   if os.path.basename(tracename) in trace2info.keys():
-    (trace_level,no_events_cnt,events2ignore) = trace2info[os.path.basename(tracename)]
+    (trace_level,no_events_cnt,events2ignore,count_once) = trace2info[os.path.basename(tracename)]
+    print 'Trace comparison for ' + os.path.basename(tracename) + ' at level ' + str(trace_level) + ' with no_events_cnt regex ' + no_events_cnt + ' and events_to_ignore list ' + events2ignore + ' and count_once ' + str(count_once)
   else:
+    print 'Trace ' + os.path.basename(tracename) + ' not found in ' + trace2info_filename + ', defaulting to level 0 i.e. no trace comparison'
     return 1
 
   if trace_level == 1:
-    cnt_r = gen_events_info(rtrace,'cnt',no_events_cnt,events2ignore,verbose)
-    cnt = gen_events_info(trace,'cnt',no_events_cnt,events2ignore,verbose)
+    cnt_r = gen_events_info(rtrace,'cnt',no_events_cnt,events2ignore,verbose,count_once)
+    cnt = gen_events_info(trace,'cnt',no_events_cnt,events2ignore,verbose,count_once)
     if cnt_r == cnt:
       if verbose:
         print 'PASSED!'
@@ -62,8 +78,8 @@ def check_trace_status(tracename,verbose):
         print 'FAILED!'
       return 1
   elif trace_level == 2:
-    cnt_r = gen_events_info(rtrace,'or',no_events_cnt,events2ignore,verbose)
-    cnt = gen_events_info(trace,'or',no_events_cnt,events2ignore,verbose)
+    cnt_r = gen_events_info(rtrace,'or',no_events_cnt,events2ignore,verbose,count_once)
+    cnt = gen_events_info(trace,'or',no_events_cnt,events2ignore,verbose,count_once)
     if cnt_r == cnt:
       if verbose:
         print 'PASSED!'
@@ -79,13 +95,12 @@ def check_trace_status(tracename,verbose):
       return 0
     else:
       print 'FAILED!'
-      os.system('/usr/bin/diff ' + trace + ' ' + rtrace)
-      print diff_strs(cnt,cnt_r)
+      os.system('/usr/bin/diff --brief ' + trace + ' ' + rtrace)
       return 1
 
 #Parses roctracer trace file for regression purpose
 #and generates events count per event (when cnt is on) or events order per tid (when order is on)
-def gen_events_info(tracefile, metric,no_events_cnt,events2ignore,verbose):
+def gen_events_info(tracefile, metric,no_events_cnt,events2ignore,verbose,count_once):
   events_count = {}
   events_order = {}
   res=''
@@ -125,7 +140,11 @@ def gen_events_info(tracefile, metric,no_events_cnt,events2ignore,verbose):
           events_count[event] = 1
       if metric == 'or' and (m or m2 or m3) and event not in events2ignore:
         if tid in events_order.keys():
-          events_order[tid].append(event)
+          if count_once == 1:
+            if event != events_order[tid][-1]: #Add event only if it is not last event in the list
+              events_order[tid].append(event)
+          else:
+            events_order[tid].append(event)
         else:
           events_order[tid] = [event]
   if metric == 'cnt':
