@@ -33,7 +33,6 @@ def parse_trace_levels(filename):
     f = open(filename)
     trace2info = {}
     for line in f:
-        count_once = 0
         lis = line.split(' ')
         trace_name = lis[0]
         comp_level = lis[1]
@@ -48,9 +47,8 @@ def parse_trace_levels(filename):
             no_events_cnt = ' '
           if l == '-ignore-event':
             events2ignore = ' '
-          if l.rstrip('\n') == '-count_once':
-            count_once = 1
-        trace2info[trace_name] = (eval(comp_level),no_events_cnt,events2ignore,count_once)
+        trace2info[trace_name] = (comp_level,no_events_cnt,events2ignore)
+
     return trace2info
 
 # check trace againt golden reference and returns 0 for match, 1 for mismatch
@@ -60,15 +58,27 @@ def check_trace_status(tracename,verbose):
   trace = 'test/' + tracename + '.txt'
   rtrace = tracename + '.txt'
   if os.path.basename(tracename) in trace2info.keys():
-    (trace_level,no_events_cnt,events2ignore,count_once) = trace2info[os.path.basename(tracename)]
-    print 'Trace comparison for ' + os.path.basename(tracename) + ' at level ' + str(trace_level) + ' with no_events_cnt regex ' + no_events_cnt + ' and events_to_ignore list ' + events2ignore + ' and count_once ' + str(count_once)
+    (trace_level,no_events_cnt,events2ignore) = trace2info[os.path.basename(tracename)]
+    trace_level=trace_level.rstrip('\n')
+    no_events_cnt=no_events_cnt.rstrip('\n')
+    events2ignore=events2ignore.rstrip('\n')
+    print 'Trace comparison for ' + os.path.basename(tracename) + ' is ' + trace_level + ' with no_events_cnt regex \'' + no_events_cnt + '\' and events_to_ignore list \'' + events2ignore + '\''
   else:
     print 'Trace ' + os.path.basename(tracename) + ' not found in ' + trace2info_filename + ', defaulting to level 0 i.e. no trace comparison'
     return 1
 
-  if trace_level == 1:
-    cnt_r = gen_events_info(rtrace,'cnt',no_events_cnt,events2ignore,verbose,count_once)
-    cnt = gen_events_info(trace,'cnt',no_events_cnt,events2ignore,verbose,count_once)
+  if no_events_cnt == '':
+    no_events_cnt = 'empty-regex'
+  if events2ignore == '':
+    events2ignore = 'empty-regex'
+  if trace_level == 'no_comp':
+    if verbose:
+        print 'PASSED!'
+    return 0
+
+  if trace_level == 'diff_counts':
+    cnt_r = gen_events_info(rtrace,'cnt',no_events_cnt,events2ignore,verbose)
+    cnt = gen_events_info(trace,'cnt',no_events_cnt,events2ignore,verbose)
     if cnt_r == cnt:
       if verbose:
         print 'PASSED!'
@@ -77,9 +87,10 @@ def check_trace_status(tracename,verbose):
       if verbose:
         print 'FAILED!'
       return 1
-  elif trace_level == 2:
-    cnt_r = gen_events_info(rtrace,'or',no_events_cnt,events2ignore,verbose,count_once)
-    cnt = gen_events_info(trace,'or',no_events_cnt,events2ignore,verbose,count_once)
+
+  if trace_level == 'diff_events':
+    cnt_r = gen_events_info(rtrace,'or',no_events_cnt,events2ignore,verbose)
+    cnt = gen_events_info(trace,'or',no_events_cnt,events2ignore,verbose)
     if cnt_r == cnt:
       if verbose:
         print 'PASSED!'
@@ -88,7 +99,8 @@ def check_trace_status(tracename,verbose):
       if verbose:
         print 'FAILED!'
       return 1
-  elif trace_level == 3:
+
+  if trace_level == 'diff_traces':
     if filecmp.cmp(trace,rtrace):
       if verbose:
         print 'PASSED!'
@@ -100,13 +112,16 @@ def check_trace_status(tracename,verbose):
 
 #Parses roctracer trace file for regression purpose
 #and generates events count per event (when cnt is on) or events order per tid (when order is on)
-def gen_events_info(tracefile, metric,no_events_cnt,events2ignore,verbose,count_once):
+def gen_events_info(tracefile, metric,no_events_cnt,events2ignore,verbose):
   events_count = {}
   events_order = {}
   res=''
+  re_genre = r'{}'.format(no_events_cnt)
+  re_genre2 = r'{}'.format(events2ignore)
   with open(tracefile) as f:
     for line in f:
       event_pattern_s = re.compile(r'# START \((\d+)\) #############################')
+      event = ''
       ms = event_pattern_s.match(line)
       if ms:
         start_id = ms.group(1)
@@ -133,15 +148,17 @@ def gen_events_info(tracefile, metric,no_events_cnt,events2ignore,verbose,count_
       if m3:
         event = m3.group(1)
         tid = start_id
-      if metric == 'cnt' and (m or m2 or m3) and event not in events2ignore:
+      if event == '' or re.search(re_genre2,event) :
+        continue
+      if metric == 'cnt' and (m or m2 or m3):
         if event in events_count:
           events_count[event] = events_count[event] + 1
         else:
           events_count[event] = 1
-      if metric == 'or' and (m or m2 or m3) and event not in events2ignore:
+      if metric == 'or' and (m or m2 or m3):
         if tid in events_order.keys():
-          if count_once == 1:
-            if event != events_order[tid][-1]: #Add event only if it is not last event in the list
+          if re.search(re_genre,event): 
+            if event != events_order[tid][-1]: #Add event only if it is not last event
               events_order[tid].append(event)
           else:
             events_order[tid].append(event)
@@ -149,8 +166,7 @@ def gen_events_info(tracefile, metric,no_events_cnt,events2ignore,verbose,count_
           events_order[tid] = [event]
   if metric == 'cnt':
     for event,count in events_count.items():
-      re_genre = r'{}'.format(no_events_cnt)
-      if re.search(re_genre,event): # or no_events_cnt == "N/A": #'hsa_agent.*|hsa_amd.*|hsa_signal.*|hsa_sys.*'
+      if re.search(re_genre,event):
         res = res + event + '\n'
       else:
         res = res + event + " : count " + str(count) + '\n'
