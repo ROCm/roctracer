@@ -23,10 +23,10 @@ THE SOFTWARE.
 #ifndef INC_ROCTRACER_HIP_H_
 #define INC_ROCTRACER_HIP_H_
 
+#include "roctracer.h"
+#include "inc/hip_ostream_ops.h"
 #include <hip/hip_runtime.h>
 #include <hip/hcc_detail/hip_prof_str.h>
-
-#include "roctracer.h"
 
 #ifdef __cplusplus
 extern "C" {
