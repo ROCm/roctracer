@@ -43,9 +43,9 @@ def parse_trace_levels(filename):
             no_events_cnt = l 
           if events2ignore == ' ':
             events2ignore = l 
-          if l == '-no-event-count':
+          if l == '--no-event-count':
             no_events_cnt = ' '
-          if l == '-ignore-event':
+          if l == '--ignore-event':
             events2ignore = ' '
         trace2info[trace_name] = (comp_level,no_events_cnt,events2ignore)
 
@@ -71,12 +71,12 @@ def check_trace_status(tracename,verbose):
     no_events_cnt = 'empty-regex'
   if events2ignore == '':
     events2ignore = 'empty-regex'
-  if trace_level == 'no_comp':
+  if trace_level == '--no-check':
     if verbose:
         print 'PASSED!'
     return 0
 
-  if trace_level == 'diff_counts':
+  if trace_level == '--count-check':
     cnt_r = gen_events_info(rtrace,'cnt',no_events_cnt,events2ignore,verbose)
     cnt = gen_events_info(trace,'cnt',no_events_cnt,events2ignore,verbose)
     if cnt_r == cnt:
@@ -86,9 +86,10 @@ def check_trace_status(tracename,verbose):
     else:
       if verbose:
         print 'FAILED!'
+        #print_diff(cnt,cnt_r)
       return 1
 
-  if trace_level == 'diff_events':
+  if trace_level == '--order-check':
     cnt_r = gen_events_info(rtrace,'or',no_events_cnt,events2ignore,verbose)
     cnt = gen_events_info(trace,'or',no_events_cnt,events2ignore,verbose)
     if cnt_r == cnt:
@@ -98,9 +99,10 @@ def check_trace_status(tracename,verbose):
     else:
       if verbose:
         print 'FAILED!'
+        #print_diff(cnt,cnt_r)
       return 1
 
-  if trace_level == 'diff_traces':
+  if trace_level == '--diff-check':
     if filecmp.cmp(trace,rtrace):
       if verbose:
         print 'PASSED!'
@@ -148,7 +150,7 @@ def gen_events_info(tracefile, metric,no_events_cnt,events2ignore,verbose):
       if m3:
         event = m3.group(1)
         tid = start_id
-      if event == '' or re.search(re_genre2,event) :
+      if event == '' or re.search(re_genre2,event):
         continue
       if metric == 'cnt' and (m or m2 or m3):
         if event in events_count:
@@ -157,7 +159,7 @@ def gen_events_info(tracefile, metric,no_events_cnt,events2ignore,verbose):
           events_count[event] = 1
       if metric == 'or' and (m or m2 or m3):
         if tid in events_order.keys():
-          if re.search(re_genre,event): 
+          if re.search(re_genre,event):
             if event != events_order[tid][-1]: #Add event only if it is not last event
               events_order[tid].append(event)
           else:
