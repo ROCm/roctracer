@@ -1,9 +1,9 @@
-MatrixTranspose_ctest_trace --diff-check
-MatrixTranspose_test_trace --count-check
-MatrixTranspose_mgpu_trace --count-check
-MatrixTranspose_sys_trace --count-check --no-event-count hsa_.* --ignore-event hipMemcpy|hipMalloc|hipModuleLaunchKernel|hipFree|hipGetDeviceProperties
-MatrixTranspose_sys_hsa_trace --order-check --ignore-event hsa_exec.*|hsa_code.*|hsa_signal.*|hipMemcpy|hipMalloc|hipModuleLaunchKernel|hipFree|hipGetDeviceProperties --no-event-count hsa_.*
-MatrixTranspose_hip_period_trace --no-check
-MatrixTranspose_hip_flush_trace --count-check --ignore-event hipMemcpy|hipMalloc|hipModuleLaunchKernel|hipFree|hipGetDeviceProperties
-ctrl_hsa_trace --count-check
-ctrl_hsa_input_trace --order-check
+MatrixTranspose_ctest_trace --check-events .*
+MatrixTranspose_test_trace --check-count .* --ignore-count hsaKmt.*
+MatrixTranspose_mgpu_trace --check-count .* --ignore-count hsaKmt.*
+MatrixTranspose_sys_trace --check-count .* --ignore-count hsa_.*
+MatrixTranspose_sys_hsa_trace --check-count .* --ignore-count hsa_.*
+MatrixTranspose_hip_period_trace --check-order .* --ignore-event hcCommandMarker|hcCommandKernel|hipModuleLaunchKernel|hipMemcpy
+MatrixTranspose_hip_flush_trace --check-order .*
+ctrl_hsa_trace --check-count .*
+ctrl_hsa_input_trace --check-count .*
