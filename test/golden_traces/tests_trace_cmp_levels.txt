@@ -5,5 +5,6 @@ MatrixTranspose_sys_trace --check-count .* --ignore-count hsa_.*
 MatrixTranspose_sys_hsa_trace --check-count .* --ignore-count hsa_.*
 MatrixTranspose_hip_period_trace --check-order .* --ignore-event hcCommandMarker|hcCommandKernel|hipModuleLaunchKernel|hipMemcpy
 MatrixTranspose_hip_flush_trace --check-order .*
+MatrixTranspose_kfd_trace --check-events .*
 ctrl_hsa_trace --check-count .*
 ctrl_hsa_input_trace --check-count .*
