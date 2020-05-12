@@ -154,8 +154,6 @@ def gen_events_info(tracefile, trace_level, no_events_cnt, events2ignore, events
   #'       hcCommandKernel correlation_id(6) time_ns(1548622661443020:1548622662666935) device_id(0) queue_id(0)'
   cpu_api_record1 = re.compile(r'<(\w+)\s+id\(\d+\)\s+.*tid\((\d+)\)>')
   # <hsaKmtGetVersion id(2) correlation_id(0) on-enter pid(26224) tid(26224)>
-  #cpu_api_record2 = re.compile(r'<(\w+)\s+id\(\d+\).*>')
-  #<hsaKmtGetVersion id(2)        correlation_id(0) on-enter>
   cpu_api_record3 = re.compile(r'\d+:\d+\s+\d+:(\d+)\s+(\w+)')
   # 1822810364769411:1822810364771941 116477:116477 hsa_agent_get_info(<agent 0x8990e0>, 17, 0x7ffeac015fec) = 0
   cpu_api_record4 = re.compile(r'<rocTX "(\w+)">')
