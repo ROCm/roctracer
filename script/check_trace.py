@@ -34,6 +34,8 @@ def parse_trace_levels(trace_config_filename):
     f = open(trace_config_filename)
     trace2info = {}
     for line in f:
+        if re.match('^# dummy',line):
+          return trace2info
         lis = line.split(' ')
         trace_name = lis[0]
         comp_level = lis[1]
@@ -74,6 +76,11 @@ def parse_trace_levels(trace_config_filename):
 def check_trace_status(tracename, verbose):
   trace2info = parse_trace_levels(trace2info_filename)
 
+  if len(trace2info) == 0:
+    if verbose:
+      print('PASSED!')
+    return 0
+
   trace = 'test/' + tracename + '.txt'
   rtrace = tracename + '.txt'
   if os.path.basename(tracename) in trace2info.keys():
@@ -85,8 +92,6 @@ def check_trace_status(tracename, verbose):
     events2chkord = events2chkord.rstrip('\n')
     events2ch = events2ch.rstrip('\n')
 
-    print('Trace comparison for ' + os.path.basename(tracename) + ' with --ignore-count \'' + no_events_cnt + '\' and --ignore-event \'' + events2ignore + '\' ' + \
-      'and --check-count \'' + events2chkcnt + '\' and --check-order \'' + events2chkord + '\'' + ' --check-events \'' + events2ch + '\'')
   else:
     print('Trace ' + os.path.basename(tracename) + ' not found in ' + trace2info_filename + ', defaulting to level 0 i.e. no trace comparison')
     return 1
@@ -143,60 +148,53 @@ def gen_events_info(tracefile, trace_level, no_events_cnt, events2ignore, events
   re_events2chkcnt = r'{}'.format(events2chkcnt)
   re_events2chkord = r'{}'.format(events2chkord)
 
+  cpu_api_record_s = re.compile(r'# START \((\d+)\) #############################')
+  tool_record_pattern = re.compile(r'\s*(\w+)\s+correlation_id\(\d+\)\s+.*_id\((\d+)\)$')
+  #'       hipSetDevice    correlation_id(1) time_ns(1548622357525055:1548622357542015) process_id(126283) thread_id(126283)'
+  #'       hcCommandKernel correlation_id(6) time_ns(1548622661443020:1548622662666935) device_id(0) queue_id(0)'
+  cpu_api_record1 = re.compile(r'<(\w+)\s+id\(\d+\)\s+.*tid\((\d+)\)>')
+  # <hsaKmtGetVersion id(2) correlation_id(0) on-enter pid(26224) tid(26224)>
+  #cpu_api_record2 = re.compile(r'<(\w+)\s+id\(\d+\).*>')
+  #<hsaKmtGetVersion id(2)        correlation_id(0) on-enter>
+  cpu_api_record3 = re.compile(r'\d+:\d+\s+\d+:(\d+)\s+(\w+)')
+  # 1822810364769411:1822810364771941 116477:116477 hsa_agent_get_info(<agent 0x8990e0>, 17, 0x7ffeac015fec) = 0
+  cpu_api_record4 = re.compile(r'<rocTX "(\w+)">')
+  # <rocTX "hipLaunchKernel">
+  cpu_api_record5 = re.compile(r'(\w+)\s*\(.*\)\s*')
+  # hipMemcpy( dst=0x7ff210e00000, src=0x170b5d0, sizeBytes=4194304, kind=1)
+
   start_id = 0
   with open(tracefile) as f:
     for line in f:
       event_found = 0
       line=line.rstrip('\n')
-      cpu_api_record_s = re.compile(r'# START \((\d+)\) #############################')
       event = ''
       cpu_api_record_s_match = cpu_api_record_s.match(line)
       if cpu_api_record_s_match:
         start_id = cpu_api_record_s_match.group(1)
         continue
-      gpu_activity_record = re.compile(r'\s*(\w+)\s+correlation_id\(\d+\)\s+.*_id\((\d+)\)$')
-      #'       hipSetDevice    correlation_id(1) time_ns(1548622357525055:1548622357542015) process_id(126283) thread_id(126283)'
-      #'       hcCommandKernel correlation_id(6) time_ns(1548622661443020:1548622662666935) device_id(0) queue_id(0)'
-      gpu_activity_record_match = gpu_activity_record.match(line)
-      if gpu_activity_record_match:
+      tool_record_pattern_match = tool_record_pattern.match(line)
+      if tool_record_pattern_match:
         event_found = 1
-        event = gpu_activity_record_match.group(1)
-        tid = int(gpu_activity_record_match.group(2))
-      cpu_api_record1 = re.compile(r'<(\w+)\s+id\(\d+\)\s+.*tid\((\d+)\)>')
-      # <hsaKmtGetVersion id(2) correlation_id(0) on-enter pid(26224) tid(26224)>
+        event = tool_record_pattern_match.group(1)
+        tid = int(tool_record_pattern_match.group(2))
       cpu_api_record1_match = cpu_api_record1.match(line)
       if cpu_api_record1_match:
         event_found = 1
         event = cpu_api_record1_match.group(1)
         tid = int(cpu_api_record1_match.group(2))
-      else:
-        cpu_api_record2 = re.compile(r'<(\w+)\s+id\(\d+\).*>')
-        #<hsaKmtGetVersion id(2)        correlation_id(0) on-enter>
-        cpu_api_record2_match = cpu_api_record2.match(line)
-        if cpu_api_record2_match:
-          event_found = 1
-          event = cpu_api_record2_match.group(1)
-          tid = int(start_id)
-      cpu_api_record3 = re.compile(r'\d+:\d+\s+\d+:(\d+)\s+(\w+)')
-      # 1822810364769411:1822810364771941 116477:116477 hsa_agent_get_info(<agent 0x8990e0>, 17, 0x7ffeac015fec) = 0
+        
       cpu_api_record3_match = cpu_api_record3.match(line)
       if cpu_api_record3_match:
         event_found = 1
         event = cpu_api_record3_match.group(2)
         tid = int(cpu_api_record3_match.group(1))
         start_id = tid
-      cpu_api_record4 = re.compile(r'<rocTX "(\w+)">')
-      # cpu_api_record2 extracts rocTX event like:
-      # <rocTX "before hipLaunchKernel">
-      # <rocTX "hipLaunchKernel">
       cpu_api_record4_match = cpu_api_record4.match(line)
       if cpu_api_record4_match:
         event_found = 1
         event = cpu_api_record4_match.group(1)
         tid = int(start_id)
-      # cpu_api_record3 extracts events like these
-      # hipMemcpy( dst=0x7ff210e00000, src=0x170b5d0, sizeBytes=4194304, kind=1)
-      cpu_api_record5 = re.compile(r'(\w+)\s*\(.*\)\s*')
       cpu_api_record5_match = cpu_api_record5.match(line)
       if cpu_api_record5_match:
         event_found = 1
