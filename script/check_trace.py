@@ -92,6 +92,8 @@ def check_trace_status(tracename, verbose):
     events2chkord = events2chkord.rstrip('\n')
     events2ch = events2ch.rstrip('\n')
 
+    #print('Trace comparison for ' + os.path.basename(tracename) + ' with --ignore-count \'' + no_events_cnt + '\' and --ignore-event \'' + events2ignore + '\' ' + \
+    #  'and --check-count \'' + events2chkcnt + '\' and --check-order \'' + events2chkord + '\'' + ' --check-events \'' + events2ch + '\'')
   else:
     print('Trace ' + os.path.basename(tracename) + ' not found in ' + trace2info_filename + ', defaulting to level 0 i.e. no trace comparison')
     return 1
@@ -148,68 +150,48 @@ def gen_events_info(tracefile, trace_level, no_events_cnt, events2ignore, events
   re_events2chkcnt = r'{}'.format(events2chkcnt)
   re_events2chkord = r'{}'.format(events2chkord)
 
-  cpu_api_record_s = re.compile(r'# START \((\d+)\) #############################')
-  tool_record_pattern = re.compile(r'\s*(\w+)\s+correlation_id\(\d+\)\s+.*_id\((\d+)\)$')
+  test_act_pattern = re.compile(r'\s*(\w+)\s+.*_id\((\d+)\)$')
   #'       hipSetDevice    correlation_id(1) time_ns(1548622357525055:1548622357542015) process_id(126283) thread_id(126283)'
   #'       hcCommandKernel correlation_id(6) time_ns(1548622661443020:1548622662666935) device_id(0) queue_id(0)'
-  cpu_api_record1 = re.compile(r'<(\w+)\s+id\(\d+\)\s+.*tid\((\d+)\)>')
+  test_api_cb_pattern = re.compile(r'<(\w+)\s+.*tid\((\d+)\)>')
   # <hsaKmtGetVersion id(2) correlation_id(0) on-enter pid(26224) tid(26224)>
-  cpu_api_record3 = re.compile(r'\d+:\d+\s+\d+:(\d+)\s+(\w+)')
+  # below is roctx pattern
+  # <hipLaunchKernel pid(123) tid(123)>
+  tool_record = re.compile(r'\d+:\d+\s+\d+:(\d+)\s+(\w+)')
+  # tool_api_record 
   # 1822810364769411:1822810364771941 116477:116477 hsa_agent_get_info(<agent 0x8990e0>, 17, 0x7ffeac015fec) = 0
-  cpu_api_record4 = re.compile(r'<rocTX "(\w+)">')
-  # <rocTX "hipLaunchKernel">
-  cpu_api_record5 = re.compile(r'(\w+)\s*\(.*\)\s*')
-  # hipMemcpy( dst=0x7ff210e00000, src=0x170b5d0, sizeBytes=4194304, kind=1)
+  # tool_gpu_act_record 
+  # 3632773658039902:3632773658046462 0:0 hcCommandMarker:273
 
-  start_id = 0
   with open(tracefile) as f:
     for line in f:
-      event_found = 0
       line=line.rstrip('\n')
       event = ''
-      cpu_api_record_s_match = cpu_api_record_s.match(line)
-      if cpu_api_record_s_match:
-        start_id = cpu_api_record_s_match.group(1)
-        continue
-      tool_record_pattern_match = tool_record_pattern.match(line)
-      if tool_record_pattern_match:
-        event_found = 1
-        event = tool_record_pattern_match.group(1)
-        tid = int(tool_record_pattern_match.group(2))
-      cpu_api_record1_match = cpu_api_record1.match(line)
-      if cpu_api_record1_match:
-        event_found = 1
-        event = cpu_api_record1_match.group(1)
-        tid = int(cpu_api_record1_match.group(2))
-        
-      cpu_api_record3_match = cpu_api_record3.match(line)
-      if cpu_api_record3_match:
-        event_found = 1
-        event = cpu_api_record3_match.group(2)
-        tid = int(cpu_api_record3_match.group(1))
-        start_id = tid
-      cpu_api_record4_match = cpu_api_record4.match(line)
-      if cpu_api_record4_match:
-        event_found = 1
-        event = cpu_api_record4_match.group(1)
-        tid = int(start_id)
-      cpu_api_record5_match = cpu_api_record5.match(line)
-      if cpu_api_record5_match:
-        event_found = 1
-        event = cpu_api_record5_match.group(1)
-        tid = int(start_id)
+      test_act_pattern_match = test_act_pattern.match(line)
+      if test_act_pattern_match:
+        event = test_act_pattern_match.group(1)
+        tid = int(test_act_pattern_match.group(2))
+      test_api_cb_pattern_match = test_api_cb_pattern.match(line)
+      if test_api_cb_pattern_match:
+        event = test_api_cb_pattern_match.group(1)
+        tid = int(test_api_cb_pattern_match.group(2))
+      tool_record_match = tool_record.match(line)
+      if tool_record_match:
+        event = tool_record_match.group(2)
+        tid = int(tool_record_match.group(1))
       if event == '' or event == '(null)': #some traces has these null events
         continue
 
       if re.search(re_events2ignore,event):
         continue
 
-      if metric == 'cnt' and event_found and re.search(re_events2chkcnt,event):
+      if metric == 'cnt' and re.search(re_events2chkcnt,event):
         if event in events_count:
           events_count[event] = events_count[event] + 1
         else:
           events_count[event] = 1
-      if metric == 'or' and event_found and re.search(re_events2chkord,event):
+
+      if metric == 'or' and re.search(re_events2chkord,event):
         if tid in events_order.keys():
           if re.search(re_no_events_cnt,event): 
             if event != events_order[tid][-1]: #Add event only if it is not last event in the list
@@ -226,7 +208,6 @@ def gen_events_info(tracefile, trace_level, no_events_cnt, events2ignore, events
         res = res + event + " : count " + str(count) + '\n'
   if metric == 'or':
     for tid in sorted (events_order.keys()) :
-      #res = res + 'Events for tid ' + tid + ' are:\n' + str(events_order[tid]) + '\n'
       res = res + str(events_order[tid])
   if verbose:
     print(res)
