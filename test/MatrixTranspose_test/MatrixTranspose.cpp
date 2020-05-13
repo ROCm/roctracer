@@ -259,7 +259,7 @@ void api_callback(
 
   if (domain == ACTIVITY_DOMAIN_ROCTX) {
     const roctx_api_data_t* data = (const roctx_api_data_t*)(callback_data);
-    fprintf(stdout, "<rocTX \"%s\">\n", data->args.message);
+    fprintf(stdout, "<%s pid(%d) tid(%d)>\n", data->args.message, GetPid(), GetTid());
     return;
   }
   if (domain == ACTIVITY_DOMAIN_KFD_API) {
@@ -272,11 +272,11 @@ void api_callback(
     return;
   }
   const hip_api_data_t* data = (const hip_api_data_t*)(callback_data);
-  SPRINT("<%s id(%u)\tcorrelation_id(%lu) %s> ",
+  SPRINT("<%s id(%u)\tcorrelation_id(%lu) %s pid(%d) tid(%d)> ",
     roctracer_op_string(ACTIVITY_DOMAIN_HIP_API, cid, 0),
     cid,
     data->correlation_id,
-    (data->phase == ACTIVITY_API_PHASE_ENTER) ? "on-enter" : "on-exit");
+    (data->phase == ACTIVITY_API_PHASE_ENTER) ? "on-enter" : "on-exit", GetPid(), GetTid());
   if (data->phase == ACTIVITY_API_PHASE_ENTER) {
     switch (cid) {
       case HIP_API_ID_hipMemcpy:
