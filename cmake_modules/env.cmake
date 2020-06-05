@@ -53,6 +53,11 @@ set ( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC" )
 
 set ( CMAKE_SHARED_LINKER_FLAGS "-Wl,-Bdynamic -Wl,-z,noexecstack" )
 
+## Set RUNPATH if ROCM_RPATH is defined and passed by the environment
+if ( DEFINED ROCM_RPATH )
+  set ( CMAKE_SHARED_LINKER_FLAGS " -Wl,--enable-new-dtags -Wl,--rpath,${ROCM_RPATH} ${CMAKE_SHARED_LINKER_FLAGS}" )
+endif ()
+
 set ( CMAKE_SKIP_BUILD_RPATH TRUE )
 
 ## CLANG options
