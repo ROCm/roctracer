@@ -1010,6 +1010,7 @@ extern "C" PUBLIC_API void OnUnload() {
 
 extern "C" CONSTRUCTOR_API void constructor() {
   ONLOAD_TRACE_BEG();
+  roctracer::hip_support::HIP_depth_max = 0;
   roctracer_load();
   tool_load();
   ONLOAD_TRACE_END();
