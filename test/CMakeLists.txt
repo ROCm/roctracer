@@ -79,6 +79,20 @@ if ( DEFINED ROCTRACER_TARGET )
   target_link_libraries ( ${TEST_LIB} ${ROCTRACER_TARGET} ${HSA_RUNTIME_LIB} c stdc++ dl pthread rt )
 endif ()
 
+## Build uri_test.cpp referenc test
+set ( CO_LIB_NAME "uri_test" )
+set ( CO_LIB_SRC ${TEST_DIR}/app/uri_test.cpp )
+add_library ( ${CO_LIB_NAME} SHARED ${CO_LIB_SRC} )
+target_include_directories ( ${CO_LIB_NAME} PRIVATE ${HSA_RUNTIME_INC_PATH} )
+target_link_libraries ( ${CO_LIB_NAME} ${HSA_RUNTIME_LIB} c stdc++ )
+
+## Build codeobj event test
+set ( CO_LIB_NAME "codeobj_test" )
+set ( CO_LIB_SRC ${TEST_DIR}/app/codeobj_test.cpp )
+add_library ( ${CO_LIB_NAME} SHARED ${CO_LIB_SRC} )
+target_include_directories ( ${CO_LIB_NAME} PRIVATE ${TEST_DIR} ${ROOT_DIR} ${INC_PATH} ${HSA_RUNTIME_INC_PATH} ${ROCM_INC_PATH} )
+target_link_libraries ( ${CO_LIB_NAME} ${ROCTRACER_TARGET} c stdc++ )
+
 ## Build HSA test
 execute_process ( COMMAND sh -xc "if [ ! -e ${TEST_DIR}/hsa ] ; then git clone https://github.com/ROCmSoftwarePlatform/hsa-class.git ${TEST_DIR}/hsa; fi" )
 execute_process ( COMMAND sh -xc "if [ -e ${TEST_DIR}/hsa ] ; then cd ${TEST_DIR}/hsa && git fetch origin && git checkout ${HSA_REV}; fi" )

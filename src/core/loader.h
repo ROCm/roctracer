@@ -94,6 +94,10 @@ class RocpApi {
   EnableCallback_t* EnableActivityCallback;
   NameCallback_t* GetOpName;
 
+  RegisterCallback_t* RegisterEvtCallback;
+  OperateCallback_t* RemoveEvtCallback;
+  NameCallback_t* GetEvtName;
+
   protected:
   void init(Loader* loader) {
     RegisterApiCallback = loader->GetFun<RegisterCallback_t>("RegisterApiCallback");
@@ -101,6 +105,10 @@ class RocpApi {
     InitActivityCallback = loader->GetFun<InitCallback_t>("InitActivityCallback");
     EnableActivityCallback = loader->GetFun<EnableCallback_t>("EnableActivityCallback");
     GetOpName = loader->GetFun<NameCallback_t>("GetOpName");
+
+    RegisterEvtCallback = loader->GetFun<RegisterCallback_t>("RegisterEvtCallback");
+    RemoveEvtCallback = loader->GetFun<OperateCallback_t>("RemoveEvtCallback");
+    GetEvtName = loader->GetFun<NameCallback_t>("GetEvtName");
   }
 };
 
@@ -219,6 +227,7 @@ typedef BaseLoader<RocTxApi> RocTxLoader;
   template<class T> bool roctracer::BaseLoader<T>::to_check_open_ = true; \
   template<class T> bool roctracer::BaseLoader<T>::to_check_symb_ = true; \
   template<> const char* roctracer::RocpLoader::lib_name_ = "librocprofiler64.so"; \
+  template<> bool roctracer::RocpLoader::to_load_ = true; \
   template<> const char* roctracer::HipLoader::lib_name_ = HIP_LIB; \
   template<> bool roctracer::HipLoader::to_check_open_ = false; \
   template<> const char* roctracer::HccLoader::lib_name_ = HCC_LIB; \
