@@ -147,12 +147,12 @@ echo "<trace name=\"HSA\"><parameters api=\"hsa_agent_get_info, hsa_amd_memory_p
 export ROCP_INPUT=input.xml
 eval_test "tool HSA test input" ./test/hsa/ctrl ctrl_hsa_input_trace
 
-export HSA_TOOLS_LIB=./test/liburi_test.so
-eval_test "tool HSA URI" ./test/MatrixTranspose hsa_uri_trace
+export HSA_TOOLS_LIB=./test/libhsaco_test.so
+eval_test "tool HSA codeobj reference" ./test/MatrixTranspose hsa_co_ref_trace
 
 export ROCP_TOOL_LIB=./test/libcodeobj_test.so
 export HSA_TOOLS_LIB=librocprofiler64.so
-eval_test "tool HSA codeobj" ./test/MatrixTranspose hsa_codeobj_trace
+eval_test "tool HSA codeobj tracing" ./test/MatrixTranspose hsa_codeobj_trace
 
 #valgrind --leak-check=full $tbin
 #valgrind --tool=massif $tbin

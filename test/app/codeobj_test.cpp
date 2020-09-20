@@ -44,16 +44,17 @@ void check_status(roctracer_status_t status) {
 // codeobj callback
 void codeobj_callback(uint32_t domain, uint32_t cid, const void* data, void* arg) {
   const hsa_evt_data_t* evt_data = reinterpret_cast<const hsa_evt_data_t*>(data);
-  const uint32_t uri_length = evt_data->codeobj.uri_length;
   const char* uri = evt_data->codeobj.uri;
-  printf("codeobj_callback domain(%u) cid(%u): load_delta(0x%lx) load_size(0x%lx) uri_length(%u) uri(\"%s\")\n",
+
+  printf("codeobj_callback domain(%u) cid(%u): load_delta(0x%lx) load_size(0x%lx) uri(\"%s\")\n",
     domain,
     cid,
     evt_data->codeobj.load_delta,
     evt_data->codeobj.load_size,
-    uri_length,
     uri);
   fflush(stdout);
+
+  free((void*)uri);
 }
 
 void initialize() {

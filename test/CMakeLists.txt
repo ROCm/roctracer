@@ -79,9 +79,9 @@ if ( DEFINED ROCTRACER_TARGET )
   target_link_libraries ( ${TEST_LIB} ${ROCTRACER_TARGET} ${HSA_RUNTIME_LIB} c stdc++ dl pthread rt )
 endif ()
 
-## Build uri_test.cpp referenc test
-set ( CO_LIB_NAME "uri_test" )
-set ( CO_LIB_SRC ${TEST_DIR}/app/uri_test.cpp )
+## Build hsaco_test.cpp referenc test
+set ( CO_LIB_NAME "hsaco_test" )
+set ( CO_LIB_SRC ${TEST_DIR}/app/hsaco_test.cpp )
 add_library ( ${CO_LIB_NAME} SHARED ${CO_LIB_SRC} )
 target_include_directories ( ${CO_LIB_NAME} PRIVATE ${HSA_RUNTIME_INC_PATH} )
 target_link_libraries ( ${CO_LIB_NAME} ${HSA_RUNTIME_LIB} c stdc++ )

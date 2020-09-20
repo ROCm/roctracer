@@ -84,6 +84,8 @@ hsa_status_t code_object_callback(
   printf("uri_len(%u)\n", uri_len); fflush(stdout);
   printf("uri_str(\"%s\")\n", uri_str); fflush(stdout);
 
+  free(uri_str);
+
   return HSA_STATUS_SUCCESS;
 }
 
