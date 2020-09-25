@@ -102,8 +102,9 @@ set ( PUBLIC_HEADERS
   roctracer_cb_table.h
   hip_ostream_ops.h
   hsa_prof_str.h
-  kfd_ostream_ops.h
+  hsa_ostream_ops.h
   kfd_prof_str.h
+  kfd_ostream_ops.h
   ext/prof_protocol.h
   ext/hsa_rt_utils.hpp
 )
