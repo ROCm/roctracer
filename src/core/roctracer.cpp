@@ -95,7 +95,6 @@ THE SOFTWARE.
 
 
 static inline uint32_t GetPid() { return syscall(__NR_getpid); }
-static inline uint32_t GetTid() { return syscall(__NR_gettid); }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Mark callback
