@@ -671,7 +671,24 @@ void pool_activity_callback(const char* begin, const char* end, void* arg) {
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
 // KFD API tracing
 
+struct kfd_api_trace_entry_t {
+  std::atomic<uint32_t> valid;
+  roctracer::entry_type_t type;
+  uint32_t domain;
+  uint32_t cid;
+  timestamp_t begin;
+  timestamp_t end;
+  uint32_t pid;
+  uint32_t tid;
+  kfd_api_data_t data;
+};
+
+void kfd_api_flush_cb(kfd_api_trace_entry_t* entry);
+constexpr roctracer::TraceBuffer<kfd_api_trace_entry_t>::flush_prm_t kfd_api_flush_prm = {roctracer::DFLT_ENTRY_TYPE, kfd_api_flush_cb};
+roctracer::TraceBuffer<kfd_api_trace_entry_t>* kfd_api_trace_buffer = NULL;
+
 // KFD API callback function
+
 static thread_local bool in_kfd_api_callback = false;
 void kfd_api_callback(
     uint32_t domain,
@@ -687,13 +704,23 @@ void kfd_api_callback(
     kfd_begin_timestamp = timer->timestamp_fn_ns();
   } else {
     const timestamp_t end_timestamp = timer->timestamp_fn_ns();
-    std::ostringstream os;
-    os << kfd_begin_timestamp << ":" << end_timestamp << " " << GetPid() << ":" << GetTid() << " " << kfd_api_data_pair_t(cid, *data);
-    fprintf(kfd_api_file_handle, "%s\n", os.str().c_str());
+    kfd_api_trace_entry_t* entry = kfd_api_trace_buffer->GetEntry();
+    entry->cid = cid;
+    entry->begin = kfd_begin_timestamp;
+    entry->end = end_timestamp;
+    entry->pid = GetPid();
+    entry->tid = GetTid();
+    entry->data = *data;
+    entry->valid.store(roctracer::TRACE_ENTRY_COMPL, std::memory_order_release);
   }
   in_kfd_api_callback = false;
 }
 
+void kfd_api_flush_cb(kfd_api_trace_entry_t* entry) {
+  std::ostringstream os;
+  os << entry->begin << ":" << entry->end << " " << entry->pid << ":" << entry->tid << " " << kfd_api_data_pair_t(entry->cid, entry->data);
+  fprintf(kfd_api_file_handle, "%s\n", os.str().c_str());
+}
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // Input parser
@@ -1194,6 +1221,7 @@ extern "C" CONSTRUCTOR_API void constructor() {
   hip_api_trace_buffer = new roctracer::TraceBuffer<hip_api_trace_entry_t>("HIP API", 0x200000, &hip_api_flush_prm, 1);
   hip_act_trace_buffer = new roctracer::TraceBuffer<hip_act_trace_entry_t>("HIP ACT", 0x200000, &hip_act_flush_prm, 1, 1);
   hsa_api_trace_buffer = new roctracer::TraceBuffer<hsa_api_trace_entry_t>("HSA API", 0x200000, &hsa_flush_prm, 1);
+  kfd_api_trace_buffer = new roctracer::TraceBuffer<kfd_api_trace_entry_t>("KFD API", 0x200000, &kfd_api_flush_prm, 1);
   roctracer_load();
   tool_load();
   ONLOAD_TRACE_END();
