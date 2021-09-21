@@ -353,14 +353,22 @@ void hsa_api_flush_cb(hsa_api_trace_entry_t* entry) {
 }
 
 void hsa_activity_callback(
+  uint64_t index,
   uint32_t op,
+  uint32_t pid,
   activity_record_t* record,
   void* arg)
 {
-  static uint64_t index = 0;
-  fprintf(hsa_async_copy_file_handle, "%lu:%lu async-copy:%lu:%u\n", record->begin_ns, record->end_ns, index, my_pid); fflush(hsa_async_copy_file_handle);
-  index++;
+  fprintf(hsa_async_copy_file_handle, "%lu:%lu async-copy:%lu:%u\n", record->begin_ns, record->end_ns, index, pid); fflush(hsa_async_copy_file_handle);
 }
+
+void hsa_activity_callback_wrapper( uint32_t op,
+  activity_record_t* record,
+  void* arg){
+  static uint64_t index = 0;
+  hsa_activity_callback(index, op, my_pid, record, arg);
+  index++;
+  }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
 // HIP API tracing
@@ -1128,7 +1136,7 @@ extern "C" PUBLIC_API bool OnLoad(HsaApiTable* table, uint64_t runtime_version, 
     // initialize HSA tracing
     roctracer::hsa_ops_properties_t ops_properties {
       table,
-      reinterpret_cast<activity_async_callback_t>(hsa_activity_callback),
+      reinterpret_cast<activity_async_callback_t>(hsa_activity_callback_wrapper),
       NULL,
       output_prefix
     };
