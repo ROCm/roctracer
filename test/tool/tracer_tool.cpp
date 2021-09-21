@@ -236,8 +236,8 @@ struct roctx_trace_entry_t {
   const char* message;
 };
 
-void roctx_flush_cb(roctx_trace_entry_t* entry);
-constexpr roctracer::TraceBuffer<roctx_trace_entry_t>::flush_prm_t roctx_flush_prm = {roctracer::DFLT_ENTRY_TYPE, roctx_flush_cb};
+void roctx_flush_cb_wrapper(roctx_trace_entry_t* entry);
+constexpr roctracer::TraceBuffer<roctx_trace_entry_t>::flush_prm_t roctx_flush_prm = {roctracer::DFLT_ENTRY_TYPE, roctx_flush_cb_wrapper};
 roctracer::TraceBuffer<roctx_trace_entry_t>* roctx_trace_buffer = NULL;
 
 // rocTX callback function
@@ -286,18 +286,21 @@ void stop_callback() { roctracer::RocTxLoader::Instance().RangeStackIterate(roct
 
 // rocTX buffer flush function
 void roctx_flush_cb(roctx_trace_entry_t* entry) {
-#if ROCTX_CLOCK_TIME
-  timestamp_t timestamp = 0;
-  HsaRsrcFactory::Instance().GetTimestamp(HsaTimer::TIME_ID_CLOCK_MONOTONIC, entry->time, &timestamp);
-#else
-  const timestamp_t timestamp = entry->time;
-#endif
   std::ostringstream os;
-  os << timestamp << " " << entry->pid << ":" << entry->tid << " " << entry->cid << ":" << entry->rid;
+  os << entry->time << " " << entry->pid << ":" << entry->tid << " " << entry->cid << ":" << entry->rid;
   if (entry->message != NULL) os << ":\"" << entry->message << "\"";
   else os << ":\"\"";
   fprintf(roctx_file_handle, "%s\n", os.str().c_str()); fflush(roctx_file_handle);
 }
+
+void roctx_flush_cb_wrapper(roctx_trace_entry_t* entry){
+#if ROCTX_CLOCK_TIME
+  timestamp_t timestamp = 0;
+  HsaRsrcFactory::Instance().GetTimestamp(HsaTimer::TIME_ID_CLOCK_MONOTONIC, entry->time, &timestamp);
+  entry->time = timestamp
+#endif
+  roctx_flush_cb(entry);
+};
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
 // HSA API tracing
