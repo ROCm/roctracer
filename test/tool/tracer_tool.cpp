@@ -502,7 +502,7 @@ typedef std::map<uint64_t, const char*> hip_kernel_map_t;
 hip_kernel_map_t* hip_kernel_map = NULL;
 std::mutex hip_kernel_mutex;
 
-void hip_api_flush_cb(hip_api_trace_entry_t* entry) {
+void hip_api_flush_cb(hip_api_trace_entry_t *entry){
   const uint32_t domain = entry->domain;
   const uint32_t cid = entry->cid;
   const hip_api_data_t* data = &(entry->data);
@@ -522,14 +522,7 @@ void hip_api_flush_cb(hip_api_trace_entry_t* entry) {
 
   if (domain == ACTIVITY_DOMAIN_HIP_API) {
 #if HIP_PROF_HIP_API_STRING
-    if (hip_api_stats != NULL) {
-      hip_api_stats->add_event(cid, end_timestamp - begin_timestamp);
-      if (is_hip_kernel_launch_api(cid)) {
-  hip_kernel_mutex.lock();
-        (*hip_kernel_map)[correlation_id] = entry->name;
-  hip_kernel_mutex.unlock();
-      }
-    } else {
+    if (hip_api_stats == NULL) {
       const char* str = hipApiString((hip_api_id_t)cid, data);
       rec_ss << " " << str;
       if (is_hip_kernel_launch_api(cid) && entry->name) {
@@ -599,6 +592,29 @@ void hip_api_flush_cb(hip_api_trace_entry_t* entry) {
 
   fflush(hip_api_file_handle);
 }
+
+void hip_api_flush_cb_wrapper(hip_api_trace_entry_t *entry){
+  const uint32_t domain = entry->domain;
+  const uint32_t cid = entry->cid;
+  const hip_api_data_t* data = &(entry->data);
+  const uint64_t correlation_id = data->correlation_id;
+  const timestamp_t begin_timestamp = entry->begin;
+  const timestamp_t end_timestamp = entry->end;
+
+#if HIP_PROF_HIP_API_STRING
+  if (domain == ACTIVITY_DOMAIN_HIP_API && hip_api_stats != NULL) {
+    hip_api_stats->add_event(cid, end_timestamp - begin_timestamp);
+    if (is_hip_kernel_launch_api(cid)) {
+      hip_kernel_mutex.lock();
+      (*hip_kernel_map)[correlation_id] = entry->name;
+      hip_kernel_mutex.unlock();
+    }
+  }
+#endif
+  hip_api_flush_cb(entry);
+}
+
+
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
 // HSA API tracing
