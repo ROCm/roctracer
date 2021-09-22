@@ -109,10 +109,13 @@ bool trace_hip_api = false;
 bool trace_hip_activity = false;
 bool trace_kfd = false;
 bool trace_pcs = false;
-// API trace vector
-std::vector<std::string> hsa_api_vec;
-std::vector<std::string> kfd_api_vec;
-std::vector<std::string> hip_api_vec;
+// API trace arrays and sizes
+uint32_t hsa_api_array_size=0;
+char** hsa_api_array;
+uint32_t kfd_api_array_size=0;
+char** kfd_api_array;
+uint32_t hip_api_array_size=0;
+char** hip_api_array;
 
 LOADER_INSTANTIATE();
 TRACE_BUFFER_INSTANTIATE();
@@ -511,9 +514,9 @@ void hip_api_flush_cb(hip_api_trace_entry_t* entry) {
     if (hip_api_stats != NULL) {
       hip_api_stats->add_event(cid, end_timestamp - begin_timestamp);
       if (is_hip_kernel_launch_api(cid)) {
-	hip_kernel_mutex.lock();
+  hip_kernel_mutex.lock();
         (*hip_kernel_map)[correlation_id] = entry->name;
-	hip_kernel_mutex.unlock();
+  hip_kernel_mutex.unlock();
       }
     } else {
       const char* str = hipApiString((hip_api_id_t)cid, data);
@@ -668,7 +671,24 @@ void pool_activity_callback(const char* begin, const char* end, void* arg) {
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
 // KFD API tracing
 
+struct kfd_api_trace_entry_t {
+  std::atomic<uint32_t> valid;
+  roctracer::entry_type_t type;
+  uint32_t domain;
+  uint32_t cid;
+  timestamp_t begin;
+  timestamp_t end;
+  uint32_t pid;
+  uint32_t tid;
+  kfd_api_data_t data;
+};
+
+void kfd_api_flush_cb(kfd_api_trace_entry_t* entry);
+constexpr roctracer::TraceBuffer<kfd_api_trace_entry_t>::flush_prm_t kfd_api_flush_prm = {roctracer::DFLT_ENTRY_TYPE, kfd_api_flush_cb};
+roctracer::TraceBuffer<kfd_api_trace_entry_t>* kfd_api_trace_buffer = NULL;
+
 // KFD API callback function
+
 static thread_local bool in_kfd_api_callback = false;
 void kfd_api_callback(
     uint32_t domain,
@@ -684,13 +704,23 @@ void kfd_api_callback(
     kfd_begin_timestamp = timer->timestamp_fn_ns();
   } else {
     const timestamp_t end_timestamp = timer->timestamp_fn_ns();
-    std::ostringstream os;
-    os << kfd_begin_timestamp << ":" << end_timestamp << " " << GetPid() << ":" << GetTid() << " " << kfd_api_data_pair_t(cid, *data);
-    fprintf(kfd_api_file_handle, "%s\n", os.str().c_str());
+    kfd_api_trace_entry_t* entry = kfd_api_trace_buffer->GetEntry();
+    entry->cid = cid;
+    entry->begin = kfd_begin_timestamp;
+    entry->end = end_timestamp;
+    entry->pid = GetPid();
+    entry->tid = GetTid();
+    entry->data = *data;
+    entry->valid.store(roctracer::TRACE_ENTRY_COMPL, std::memory_order_release);
   }
   in_kfd_api_callback = false;
 }
 
+void kfd_api_flush_cb(kfd_api_trace_entry_t* entry) {
+  std::ostringstream os;
+  os << entry->begin << ":" << entry->end << " " << entry->pid << ":" << entry->tid << " " << kfd_api_data_pair_t(entry->cid, entry->data);
+  fprintf(kfd_api_file_handle, "%s\n", os.str().c_str());
+}
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // Input parser
@@ -913,7 +943,13 @@ void tool_load() {
       if (name == "HSA") {
         found = true;
         trace_hsa_api = true;
-        hsa_api_vec = api_vec;
+        hsa_api_array_size = api_vec.size();
+        if(hsa_api_array_size > 0){
+          hsa_api_array = (char**)malloc(api_vec.size() * sizeof(char*));
+          for(uint64_t i = 0 ; i < api_vec.size(); i++){
+            hsa_api_array[i] = strdup(api_vec[i].c_str());
+          }
+        }      
       }
       if (name == "GPU") {
         found = true;
@@ -923,12 +959,24 @@ void tool_load() {
         found = true;
         trace_hip_api = true;
         trace_hip_activity = true;
-        hip_api_vec = api_vec;
+        hip_api_array_size = api_vec.size();
+        if(hip_api_array_size > 0){
+          hip_api_array = (char**)malloc(api_vec.size() * sizeof(char*));
+          for(uint64_t i = 0 ; i < api_vec.size(); i++){
+            hip_api_array[i] = strdup(api_vec[i].c_str());
+          }
+        }
       }
       if (name == "KFD") {
         found = true;
         trace_kfd = true;
-        kfd_api_vec = api_vec;
+        kfd_api_array_size = api_vec.size();
+        if(kfd_api_array_size > 0){
+          kfd_api_array = (char**)malloc(api_vec.size() * sizeof(char*));
+          for(uint64_t i = 0 ; i < api_vec.size(); i++){
+            kfd_api_array[i] = strdup(api_vec[i].c_str());
+          }
+        }
       }
     }
 
@@ -1008,14 +1056,16 @@ void tool_load() {
     roctracer_set_properties(ACTIVITY_DOMAIN_KFD_API, NULL);
 
     printf("    KFD-trace(");
-    if (kfd_api_vec.size() != 0) {
-      for (unsigned i = 0; i < kfd_api_vec.size(); ++i) {
+    if (kfd_api_array_size != 0) {
+      for (unsigned i = 0; i < kfd_api_array_size; ++i) {
         uint32_t cid = KFD_API_ID_NUMBER;
-        const char* api = kfd_api_vec[i].c_str();
+        const char* api = kfd_api_array[i];
         ROCTRACER_CALL(roctracer_op_code(ACTIVITY_DOMAIN_KFD_API, api, &cid, NULL));
         ROCTRACER_CALL(roctracer_enable_op_callback(ACTIVITY_DOMAIN_KFD_API, cid, kfd_api_callback, NULL));
         printf(" %s", api);
+        free((char*)api);
       }
+      free(kfd_api_array);
     } else {
       ROCTRACER_CALL(roctracer_enable_domain_callback(ACTIVITY_DOMAIN_KFD_API, kfd_api_callback, NULL));
     }
@@ -1052,14 +1102,16 @@ extern "C" PUBLIC_API bool OnLoad(HsaApiTable* table, uint64_t runtime_version, 
     roctracer_set_properties(ACTIVITY_DOMAIN_HSA_API, (void*)table);
 
     fprintf(stdout, "    HSA-trace("); fflush(stdout);
-    if (hsa_api_vec.size() != 0) {
-      for (unsigned i = 0; i < hsa_api_vec.size(); ++i) {
+    if (hsa_api_array_size != 0) {
+      for (unsigned i = 0; i < hsa_api_array_size; ++i) {
         uint32_t cid = HSA_API_ID_NUMBER;
-        const char* api = hsa_api_vec[i].c_str();
+        const char* api = hsa_api_array[i];
         ROCTRACER_CALL(roctracer_op_code(ACTIVITY_DOMAIN_HSA_API, api, &cid, NULL));
         ROCTRACER_CALL(roctracer_enable_op_callback(ACTIVITY_DOMAIN_HSA_API, cid, hsa_api_callback, NULL));
         printf(" %s", api);
+        free((char*)api);
       }
+      free(hsa_api_array);
     } else {
       ROCTRACER_CALL(roctracer_enable_domain_callback(ACTIVITY_DOMAIN_HSA_API, hsa_api_callback, NULL));
     }
@@ -1100,26 +1152,28 @@ extern "C" PUBLIC_API bool OnLoad(HsaApiTable* table, uint64_t runtime_version, 
     // Enable tracing
     if (trace_hip_api) {
       hip_api_file_handle = open_output_file(output_prefix, "hip_api_trace.txt");
-      if (hip_api_vec.size() != 0) {
-        for (unsigned i = 0; i < hip_api_vec.size(); ++i) {
+      if (hip_api_array_size != 0) {
+        for (unsigned i = 0; i < hip_api_array_size; ++i) {
           uint32_t cid = HIP_API_ID_NUMBER;
-          const char* api = hip_api_vec[i].c_str();
+          const char* api = hip_api_array[i];
           ROCTRACER_CALL(roctracer_op_code(ACTIVITY_DOMAIN_HIP_API, api, &cid, NULL));
           ROCTRACER_CALL(roctracer_enable_op_callback(ACTIVITY_DOMAIN_HIP_API, cid, hip_api_callback, NULL));
           printf(" %s", api);
+          free((char*)api);
         }
+        free(hip_api_array);
       } else {
         ROCTRACER_CALL(roctracer_enable_domain_callback(ACTIVITY_DOMAIN_HIP_API, hip_api_callback, NULL));
       }
 
       if (is_stats_opt) {
-	const char* path = NULL;
-	FILE* f = open_output_file(output_prefix, "hip_api_stats.csv", &path);
+  const char* path = NULL;
+  FILE* f = open_output_file(output_prefix, "hip_api_stats.csv", &path);
         hip_api_stats = new EvtStats(f, path);
-	for (uint32_t id = 0; id < HIP_API_ID_NUMBER; id += 1) {
+  for (uint32_t id = 0; id < HIP_API_ID_NUMBER; id += 1) {
           const char* label = roctracer_op_string(ACTIVITY_DOMAIN_HIP_API, id, 0);
           hip_api_stats->set_label(id, label);
-	}
+  }
       }
     }
 
@@ -1128,11 +1182,11 @@ extern "C" PUBLIC_API bool OnLoad(HsaApiTable* table, uint64_t runtime_version, 
       ROCTRACER_CALL(roctracer_enable_domain_activity(ACTIVITY_DOMAIN_HCC_OPS));
 
       if (is_stats_opt) {
-	FILE* f = NULL;
-	const char* path = NULL;
-	f = open_output_file(output_prefix, "hip_kernel_stats.csv", &path);
+  FILE* f = NULL;
+  const char* path = NULL;
+  f = open_output_file(output_prefix, "hip_kernel_stats.csv", &path);
         hip_kernel_stats = new EvtStatsA(f, path);
-	f = open_output_file(output_prefix, "hip_memcpy_stats.csv", &path);
+  f = open_output_file(output_prefix, "hip_memcpy_stats.csv", &path);
         hip_memcpy_stats = new EvtStatsA(f, path);
       }
     }
@@ -1167,6 +1221,7 @@ extern "C" CONSTRUCTOR_API void constructor() {
   hip_api_trace_buffer = new roctracer::TraceBuffer<hip_api_trace_entry_t>("HIP API", 0x200000, &hip_api_flush_prm, 1);
   hip_act_trace_buffer = new roctracer::TraceBuffer<hip_act_trace_entry_t>("HIP ACT", 0x200000, &hip_act_flush_prm, 1, 1);
   hsa_api_trace_buffer = new roctracer::TraceBuffer<hsa_api_trace_entry_t>("HSA API", 0x200000, &hsa_flush_prm, 1);
+  kfd_api_trace_buffer = new roctracer::TraceBuffer<kfd_api_trace_entry_t>("KFD API", 0x200000, &kfd_api_flush_prm, 1);
   roctracer_load();
   tool_load();
   ONLOAD_TRACE_END();
