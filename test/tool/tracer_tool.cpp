@@ -663,12 +663,17 @@ void hip_act_flush_cb(hip_act_trace_entry_t* entry) {
 
 // Activity tracing callback
 //   hipMalloc id(3) correlation_id(1): begin_ns(1525888652762640464) end_ns(1525888652762877067)
+struct hip_activity_trace_entry_t {
+  const roctracer_record_t *record;
+  const char *name;
+  uint32_t pid;
+};
 
-void hip_activity_flush_cb(const roctracer_record_t *record, const char *name, uint32_t pid){
+void hip_activity_flush_cb(hip_activity_trace_entry_t *entry){
   fprintf(hcc_activity_file_handle, "%lu:%lu %d:%lu %s:%lu:%u\n",
-    record->begin_ns, record->end_ns,
-    record->device_id, record->queue_id,
-    name, record->correlation_id, pid);
+    entry->record->begin_ns, entry->record->end_ns,
+    entry->record->device_id, entry->record->queue_id,
+    entry->name, entry->record->correlation_id, entry->pid);
   fflush(hcc_activity_file_handle);
 }
 
@@ -690,7 +695,8 @@ void pool_activity_callback(const char* begin, const char* end, void* arg) {
           entry->correlation_id = record->correlation_id;
           entry->valid.store(roctracer::TRACE_ENTRY_COMPL, std::memory_order_release);
         } else {
-          hip_activity_flush_cb(record, name, my_pid);
+          hip_activity_trace_entry_t hip_activity_trace_entry = {record, name, my_pid};
+          hip_activity_flush_cb(&hip_activity_trace_entry);
         }
         break;
       case ACTIVITY_DOMAIN_HSA_OPS:
