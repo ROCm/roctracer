@@ -6,6 +6,7 @@
 
 #include <roctracer_roctx.h>
 #include <roctracer_hsa.h>
+#include <ext/prof_protocol.h>
 #include <ext/hsa_rt_utils.hpp>
 
 typedef hsa_rt_utils::Timer::timestamp_t timestamp_t;
@@ -40,6 +41,14 @@ struct hsa_api_trace_entry_t {
   uint32_t pid;
   uint32_t tid;
   hsa_api_data_t data;
+};
+
+struct hsa_activity_trace_entry_t {
+  uint64_t index;
+  uint32_t op;
+  uint32_t pid;
+  activity_record_t *record;
+  void *arg;
 };
 
 #endif

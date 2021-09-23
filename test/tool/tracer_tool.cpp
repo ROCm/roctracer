@@ -330,14 +330,6 @@ void hsa_api_flush_cb(hsa_api_trace_entry_t* entry) {
   fprintf(hsa_api_file_handle, "%s\n", os.str().c_str()); fflush(hsa_api_file_handle);
 }
 
-struct hsa_activity_trace_entry_t {
-  uint64_t index;
-  uint32_t op;
-  uint32_t pid;
-  activity_record_t *record;
-  void *arg;
-};
-
 void hsa_activity_flush_cb(
   hsa_activity_trace_entry_t *entry)
 {
