@@ -101,6 +101,7 @@ set ( PUBLIC_HEADERS
   roctracer_kfd.h
   roctracer_roctx.h
   roctracer_cb_table.h
+  roctracer_trace_entries.h
   ext/prof_protocol.h
   ext/hsa_rt_utils.hpp
 )
