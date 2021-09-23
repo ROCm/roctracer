@@ -665,18 +665,6 @@ void pool_activity_callback(const char* begin, const char* end, void* arg) {
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
 // KFD API tracing
 
-struct kfd_api_trace_entry_t {
-  std::atomic<uint32_t> valid;
-  roctracer::entry_type_t type;
-  uint32_t domain;
-  uint32_t cid;
-  timestamp_t begin;
-  timestamp_t end;
-  uint32_t pid;
-  uint32_t tid;
-  kfd_api_data_t data;
-};
-
 void kfd_api_flush_cb(kfd_api_trace_entry_t* entry);
 constexpr roctracer::TraceBuffer<kfd_api_trace_entry_t>::flush_prm_t kfd_api_flush_prm = {roctracer::DFLT_ENTRY_TYPE, kfd_api_flush_cb};
 roctracer::TraceBuffer<kfd_api_trace_entry_t>* kfd_api_trace_buffer = NULL;
