@@ -294,17 +294,6 @@ void roctx_flush_cb_wrapper(roctx_trace_entry_t* entry){
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
 // HSA API tracing
 
-struct hsa_api_trace_entry_t {
-  std::atomic<uint32_t> valid;
-  roctracer::entry_type_t type;
-  uint32_t cid;
-  timestamp_t begin;
-  timestamp_t end;
-  uint32_t pid;
-  uint32_t tid;
-  hsa_api_data_t data;
-};
-
 void hsa_api_flush_cb(hsa_api_trace_entry_t* entry);
 constexpr roctracer::TraceBuffer<hsa_api_trace_entry_t>::flush_prm_t hsa_flush_prm = {roctracer::DFLT_ENTRY_TYPE, hsa_api_flush_cb};
 roctracer::TraceBuffer<hsa_api_trace_entry_t>* hsa_api_trace_buffer = NULL;

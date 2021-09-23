@@ -5,6 +5,7 @@
 #include <cstdint>
 
 #include <roctracer_roctx.h>
+#include <roctracer_hsa.h>
 #include <ext/hsa_rt_utils.hpp>
 
 typedef hsa_rt_utils::Timer::timestamp_t timestamp_t;
@@ -28,6 +29,17 @@ struct roctx_trace_entry_t {
   uint32_t tid;
   roctx_range_id_t rid;
   const char* message;
+};
+
+struct hsa_api_trace_entry_t {
+  std::atomic<uint32_t> valid;
+  roctracer::entry_type_t type;
+  uint32_t cid;
+  timestamp_t begin;
+  timestamp_t end;
+  uint32_t pid;
+  uint32_t tid;
+  hsa_api_data_t data;
 };
 
 #endif
