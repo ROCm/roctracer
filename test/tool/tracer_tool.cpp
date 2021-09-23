@@ -348,20 +348,6 @@ void hsa_activity_callback_wrapper( uint32_t op,
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
 // HIP API tracing
 
-struct hip_api_trace_entry_t {
-  std::atomic<uint32_t> valid;
-  roctracer::entry_type_t type;
-  uint32_t domain;
-  uint32_t cid;
-  timestamp_t begin;
-  timestamp_t end;
-  uint32_t pid;
-  uint32_t tid;
-  hip_api_data_t data;
-  const char* name;
-  void* ptr;
-};
-
 void hip_api_flush_cb(hip_api_trace_entry_t* entry);
 constexpr roctracer::TraceBuffer<hip_api_trace_entry_t>::flush_prm_t hip_api_flush_prm = {roctracer::DFLT_ENTRY_TYPE, hip_api_flush_cb};
 roctracer::TraceBuffer<hip_api_trace_entry_t>* hip_api_trace_buffer = NULL;
