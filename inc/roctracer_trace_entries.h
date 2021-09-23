@@ -4,6 +4,7 @@
 #include <atomic>
 #include <cstdint>
 
+#include <roctracer.h>
 #include <roctracer_roctx.h>
 #include <roctracer_hsa.h>
 #include <roctracer_hip.h>
@@ -64,6 +65,12 @@ struct hip_api_trace_entry_t {
   hip_api_data_t data;
   const char* name;
   void* ptr;
+};
+
+struct hip_activity_trace_entry_t {
+  const roctracer_record_t *record;
+  const char *name;
+  uint32_t pid;
 };
 
 #endif

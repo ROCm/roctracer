@@ -619,11 +619,6 @@ void hip_act_flush_cb(hip_act_trace_entry_t* entry) {
 
 // Activity tracing callback
 //   hipMalloc id(3) correlation_id(1): begin_ns(1525888652762640464) end_ns(1525888652762877067)
-struct hip_activity_trace_entry_t {
-  const roctracer_record_t *record;
-  const char *name;
-  uint32_t pid;
-};
 
 void hip_activity_flush_cb(hip_activity_trace_entry_t *entry){
   fprintf(hcc_activity_file_handle, "%lu:%lu %d:%lu %s:%lu:%u\n",
