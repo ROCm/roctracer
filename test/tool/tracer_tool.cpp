@@ -40,6 +40,7 @@ THE SOFTWARE.
 #include <roctracer_hcc.h>
 #include <roctracer_kfd.h>
 #include <ext/hsa_rt_utils.hpp>
+#include <roctracer_trace_entries.h>
 
 #include "src/core/loader.h"
 #include "src/core/trace_buffer.h"
@@ -97,7 +98,6 @@ inline static void DEBUG_TRACE(const char* fmt, ...) {
 inline static void DEBUG_TRACE(const char* fmt, ...) {}
 #endif
 
-typedef hsa_rt_utils::Timer::timestamp_t timestamp_t;
 hsa_rt_utils::Timer* timer = NULL;
 thread_local timestamp_t hsa_begin_timestamp = 0;
 thread_local timestamp_t hip_begin_timestamp = 0;
@@ -224,17 +224,6 @@ void* flush_thr_fun(void*) {
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
 // rocTX annotation tracing
-
-struct roctx_trace_entry_t {
-  std::atomic<uint32_t> valid;
-  roctracer::entry_type_t type;
-  uint32_t cid;
-  timestamp_t time;
-  uint32_t pid;
-  uint32_t tid;
-  roctx_range_id_t rid;
-  const char* message;
-};
 
 void roctx_flush_cb_wrapper(roctx_trace_entry_t* entry);
 constexpr roctracer::TraceBuffer<roctx_trace_entry_t>::flush_prm_t roctx_flush_prm = {roctracer::DFLT_ENTRY_TYPE, roctx_flush_cb_wrapper};
