@@ -682,8 +682,9 @@ void pool_activity_callback(const char* begin, const char* end, void* arg) {
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
 // KFD API tracing
 
-void kfd_api_flush_cb(kfd_api_trace_entry_t* entry);
-constexpr roctracer::TraceBuffer<kfd_api_trace_entry_t>::flush_prm_t kfd_api_flush_prm = {roctracer::DFLT_ENTRY_TYPE, kfd_api_flush_cb};
+void kfd_api_flush_cb_wrapper(kfd_api_trace_entry_t* entry);
+void (*kfd_api_flush_cb_ptr)(kfd_api_trace_entry_t* entry);
+constexpr roctracer::TraceBuffer<kfd_api_trace_entry_t>::flush_prm_t kfd_api_flush_prm = {roctracer::DFLT_ENTRY_TYPE, kfd_api_flush_cb_wrapper};
 roctracer::TraceBuffer<kfd_api_trace_entry_t>* kfd_api_trace_buffer = NULL;
 
 // KFD API callback function
@@ -713,6 +714,10 @@ void kfd_api_callback(
     entry->valid.store(roctracer::TRACE_ENTRY_COMPL, std::memory_order_release);
   }
   in_kfd_api_callback = false;
+}
+
+void kfd_api_flush_cb_wrapper(kfd_api_trace_entry_t* entry) {
+  kfd_api_flush_cb_ptr(entry);
 }
 
 void kfd_api_flush_cb(kfd_api_trace_entry_t* entry) {
@@ -1088,7 +1093,18 @@ void tool_load() {
 
   // Enable KFD API callbacks/activity
   if (trace_kfd) {
-    kfd_api_file_handle = open_output_file(output_prefix, "kfd_api_trace.txt");
+    if(!output_plugin_enabled){  
+      kfd_api_file_handle = open_output_file(output_prefix, "kfd_api_trace.txt");
+      kfd_api_flush_cb_ptr = kfd_api_flush_cb;
+    }else{
+      init_plugin_lib(output_prefix, ACTIVITY_DOMAIN_KFD_API);
+      kfd_api_flush_cb_ptr = (void (*)(kfd_api_trace_entry_t *))dlsym(dl_handle, "kfd_api_flush_cb");
+      if (!kfd_api_flush_cb_ptr) {
+        printf("error: %s\n", dlerror());
+        abort();
+      }
+  }
+  
     // initialize KFD tracing
     roctracer_set_properties(ACTIVITY_DOMAIN_KFD_API, NULL);
 
