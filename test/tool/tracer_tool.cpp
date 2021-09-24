@@ -344,6 +344,7 @@ void hsa_api_flush_cb(hsa_api_trace_entry_t* entry) {
   fprintf(hsa_api_file_handle, "%s\n", os.str().c_str()); fflush(hsa_api_file_handle);
 }
 
+void (*hsa_activity_flush_cb_ptr)(hsa_activity_trace_entry_t* entry);
 void hsa_activity_flush_cb(
   hsa_activity_trace_entry_t *entry)
 {
@@ -355,7 +356,7 @@ void hsa_activity_callback_wrapper( uint32_t op,
   void* arg){
   static uint64_t index = 0;
   hsa_activity_trace_entry_t hsa_activity_trace_entry = {index, op, my_pid, record, arg};
-  hsa_activity_flush_cb(&hsa_activity_trace_entry);
+  hsa_activity_flush_cb_ptr(&hsa_activity_trace_entry);
   index++;
   }
 
@@ -1140,7 +1141,7 @@ extern "C" PUBLIC_API bool OnLoad(HsaApiTable* table, uint64_t runtime_version, 
         printf("error: %s\n", dlerror());
         abort();
       }
-	  }
+    }
 
 
     // initialize HSA tracing
@@ -1165,7 +1166,17 @@ extern "C" PUBLIC_API bool OnLoad(HsaApiTable* table, uint64_t runtime_version, 
 
   // Enable HSA GPU activity
   if (trace_hsa_activity) {
-    hsa_async_copy_file_handle = open_output_file(output_prefix, "async_copy_trace.txt");
+    if(!output_plugin_enabled){
+      hsa_async_copy_file_handle = open_output_file(output_prefix, "async_copy_trace.txt");
+      hsa_activity_flush_cb_ptr = hsa_activity_flush_cb;
+    }else{
+      init_plugin_lib(output_prefix, ACTIVITY_DOMAIN_HSA_OPS);
+      hsa_activity_flush_cb_ptr = (void (*)(hsa_activity_trace_entry_t *entry))dlsym(dl_handle, "hsa_activity_flush_cb");
+      if (!hsa_activity_flush_cb_ptr) {
+        printf("error: %s\n", dlerror());
+        abort();
+      }
+    }
 
     // initialize HSA tracing
     roctracer::hsa_ops_properties_t ops_properties {
