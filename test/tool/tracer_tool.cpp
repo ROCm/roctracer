@@ -303,8 +303,9 @@ void roctx_flush_cb_wrapper(roctx_trace_entry_t* entry){
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
 // HSA API tracing
 
-void hsa_api_flush_cb(hsa_api_trace_entry_t* entry);
-constexpr roctracer::TraceBuffer<hsa_api_trace_entry_t>::flush_prm_t hsa_flush_prm = {roctracer::DFLT_ENTRY_TYPE, hsa_api_flush_cb};
+void hsa_api_flush_cb_wrapper(hsa_api_trace_entry_t* entry);
+void (*hsa_api_flush_cb_ptr)(hsa_api_trace_entry_t*);
+constexpr roctracer::TraceBuffer<hsa_api_trace_entry_t>::flush_prm_t hsa_flush_prm = {roctracer::DFLT_ENTRY_TYPE, hsa_api_flush_cb_wrapper};
 roctracer::TraceBuffer<hsa_api_trace_entry_t>* hsa_api_trace_buffer = NULL;
 
 // HSA API callback function
@@ -331,6 +332,10 @@ void hsa_api_callback(
     entry->data = *data;
     entry->valid.store(roctracer::TRACE_ENTRY_COMPL, std::memory_order_release);
   }
+}
+
+void hsa_api_flush_cb_wrapper(hsa_api_trace_entry_t* entry){
+  hsa_api_flush_cb_ptr(entry);
 }
 
 void hsa_api_flush_cb(hsa_api_trace_entry_t* entry) {
@@ -1125,7 +1130,18 @@ extern "C" PUBLIC_API bool OnLoad(HsaApiTable* table, uint64_t runtime_version, 
 
   // Enable HSA API callbacks/activity
   if (trace_hsa_api) {
-    hsa_api_file_handle = open_output_file(output_prefix, "hsa_api_trace.txt");
+    if(!output_plugin_enabled){
+      hsa_api_file_handle = open_output_file(output_prefix, "hsa_api_trace.txt");
+      hsa_api_flush_cb_ptr = hsa_api_flush_cb;
+    }else{
+      init_plugin_lib(output_prefix, ACTIVITY_DOMAIN_HSA_API);
+      hsa_api_flush_cb_ptr = (void (*)(hsa_api_trace_entry_t* entry))dlsym(dl_handle, "hsa_api_flush_cb");
+      if (!hsa_api_flush_cb_ptr) {
+        printf("error: %s\n", dlerror());
+        abort();
+      }
+	  }
+
 
     // initialize HSA tracing
     roctracer_set_properties(ACTIVITY_DOMAIN_HSA_API, (void*)table);
