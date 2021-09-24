@@ -363,8 +363,9 @@ void hsa_activity_callback_wrapper( uint32_t op,
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
 // HIP API tracing
 
-void hip_api_flush_cb(hip_api_trace_entry_t* entry);
-constexpr roctracer::TraceBuffer<hip_api_trace_entry_t>::flush_prm_t hip_api_flush_prm = {roctracer::DFLT_ENTRY_TYPE, hip_api_flush_cb};
+void hip_api_flush_cb_wrapper(hip_api_trace_entry_t* entry);
+void (*hip_api_flush_cb_ptr)(hip_api_trace_entry_t*);
+constexpr roctracer::TraceBuffer<hip_api_trace_entry_t>::flush_prm_t hip_api_flush_prm = {roctracer::DFLT_ENTRY_TYPE, hip_api_flush_cb_wrapper};
 roctracer::TraceBuffer<hip_api_trace_entry_t>* hip_api_trace_buffer = NULL;
 
 static inline bool is_hip_kernel_launch_api(const uint32_t& cid) {
@@ -587,7 +588,7 @@ void hip_api_flush_cb_wrapper(hip_api_trace_entry_t *entry){
     }
   }
 #endif
-  hip_api_flush_cb(entry);
+  hip_api_flush_cb_ptr(entry);
 }
 
 
@@ -1207,7 +1208,18 @@ extern "C" PUBLIC_API bool OnLoad(HsaApiTable* table, uint64_t runtime_version, 
 
     // Enable tracing
     if (trace_hip_api) {
-      hip_api_file_handle = open_output_file(output_prefix, "hip_api_trace.txt");
+      if(!output_plugin_enabled){
+        hip_api_file_handle = open_output_file(output_prefix, "hip_api_trace.txt");
+        hip_api_flush_cb_ptr = hip_api_flush_cb;
+      }else{
+        init_plugin_lib(output_prefix, ACTIVITY_DOMAIN_HIP_API);
+        hip_api_flush_cb_ptr = (void (*)(hip_api_trace_entry_t* entry))dlsym(dl_handle, "hip_api_flush_cb");
+        if (!hip_api_flush_cb_ptr) {
+          printf("error: %s\n", dlerror());
+          abort();		
+        }		
+      }
+
       if (hip_api_array_size != 0) {
         for (unsigned i = 0; i < hip_api_array_size; ++i) {
           uint32_t cid = HIP_API_ID_NUMBER;
