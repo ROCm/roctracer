@@ -234,6 +234,7 @@ void* flush_thr_fun(void*) {
 // rocTX annotation tracing
 
 void roctx_flush_cb_wrapper(roctx_trace_entry_t* entry);
+void (*roctx_flush_cb_ptr)(roctx_trace_entry_t* entry);
 constexpr roctracer::TraceBuffer<roctx_trace_entry_t>::flush_prm_t roctx_flush_prm = {roctracer::DFLT_ENTRY_TYPE, roctx_flush_cb_wrapper};
 roctracer::TraceBuffer<roctx_trace_entry_t>* roctx_trace_buffer = NULL;
 
@@ -296,7 +297,7 @@ void roctx_flush_cb_wrapper(roctx_trace_entry_t* entry){
   HsaRsrcFactory::Instance().GetTimestamp(HsaTimer::TIME_ID_CLOCK_MONOTONIC, entry->time, &timestamp);
   entry->time = timestamp
 #endif
-  roctx_flush_cb(entry);
+  roctx_flush_cb_ptr(entry);
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -895,7 +896,7 @@ void tool_load() {
       }
     }
   }
-  
+
   // API traces switches
   const char* trace_domain = getenv("ROCTRACER_DOMAIN");
   if (trace_domain != NULL) {
@@ -1007,7 +1008,17 @@ void tool_load() {
 
   // Enable rpcTX callbacks
   if (trace_roctx) {
-    roctx_file_handle = open_output_file(output_prefix, "roctx_trace.txt");
+    if(!output_plugin_enabled){  
+      roctx_file_handle = open_output_file(output_prefix, "roctx_trace.txt");
+      roctx_flush_cb_ptr = roctx_flush_cb;
+    }else{
+      init_plugin_lib(output_prefix, ACTIVITY_DOMAIN_ROCTX);
+      roctx_flush_cb_ptr = (void (*)(roctx_trace_entry_t *))dlsym(dl_handle, "roctx_flush_cb");
+      if (!roctx_flush_cb_ptr) {
+        printf("error: %s\n", dlerror());
+        abort();
+      }
+    }
 
     // initialize HSA tracing
     roctracer_ext_properties_t properties {
