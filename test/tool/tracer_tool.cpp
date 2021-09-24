@@ -22,6 +22,7 @@ THE SOFTWARE.
 
 #include <sstream>
 #include <string>
+#include <dlfcn.h>
 
 #include <cxxabi.h>  /* names denangle */
 #include <dirent.h>
@@ -166,6 +167,13 @@ static inline const char* cxx_demangle(const char* symbol) {
   const char* ret = (symbol != NULL) ? abi::__cxa_demangle(symbol, NULL, &funcnamesize, &status) : symbol;
   return (ret != NULL) ? ret : strdup(symbol);
 }
+
+
+//Output plugin objects
+bool output_plugin_enabled = false;
+void* dl_handle;
+void (*init_plugin_lib)(const char*, activity_domain_t);
+void (*close_plugin_lib)();
 
 // Tracing control thread
 uint32_t control_delay_us = 0;
@@ -860,6 +868,34 @@ void tool_load() {
     }
   }
 
+  //Load output plugin if enabled
+  const char* plugin_lib = getenv("PLUGIN_LIB");
+  if(plugin_lib != NULL){
+    if (std::string(plugin_lib).find("enabled") != std::string::npos) {
+      output_plugin_enabled = true;
+      const char* roctracer_plugin_lib = getenv("ROCTRACER_PLUGIN_LIB");
+      if(roctracer_plugin_lib){  
+        dl_handle = dlopen(roctracer_plugin_lib, RTLD_LAZY);
+        if (!dl_handle) {
+          printf("error: %s\n", dlerror());
+          abort();
+        }
+
+        init_plugin_lib = (void (*)(const char* prefix, activity_domain_t domain))dlsym(dl_handle, "init_plugin_lib");  
+        if (!init_plugin_lib) {
+          printf("error: %s\n", dlerror());
+          abort();
+        }
+
+        close_plugin_lib = (void (*)())dlsym(dl_handle, "close_plugin_lib");
+        if (!close_plugin_lib) {
+          printf("error: %s\n", dlerror());
+          abort();
+        }
+      }
+    }
+  }
+  
   // API traces switches
   const char* trace_domain = getenv("ROCTRACER_DOMAIN");
   if (trace_domain != NULL) {
@@ -1219,6 +1255,11 @@ extern "C" DESTRUCTOR_API void destructor() {
   if (hip_kernel_stats) hip_kernel_stats->dump();
   if (hip_memcpy_stats) hip_memcpy_stats->dump();
 
+  if(output_plugin_enabled){
+    close_plugin_lib();
+    dlclose(dl_handle);
+  }
+  
   roctracer_unload();
   ONLOAD_TRACE_END();
 }
