@@ -11,6 +11,8 @@
 #include <string.h>
 #include <unistd.h>
 
+#include <roctracer_trace_entries.h>
+
 #define FATAL(stream)                                                                              \
   do {                                                                                             \
     std::ostringstream oss;                                                                        \
@@ -34,14 +36,6 @@ enum {
   TRACE_ENTRY_INV = 0,
   TRACE_ENTRY_INIT = 1,
   TRACE_ENTRY_COMPL = 2
-};
-
-enum entry_type_t {
-  DFLT_ENTRY_TYPE = 0,
-  API_ENTRY_TYPE = 1,
-  COPY_ENTRY_TYPE = 2,
-  KERNEL_ENTRY_TYPE = 3,
-  NUM_ENTRY_TYPE = 4
 };
 
 struct trace_entry_t {
