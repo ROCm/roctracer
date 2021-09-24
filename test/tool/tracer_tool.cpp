@@ -636,6 +636,7 @@ void hip_act_flush_cb(hip_act_trace_entry_t* entry) {
 // Activity tracing callback
 //   hipMalloc id(3) correlation_id(1): begin_ns(1525888652762640464) end_ns(1525888652762877067)
 
+void (*hip_activity_flush_cb_ptr)(hip_activity_trace_entry_t *entry);
 void hip_activity_flush_cb(hip_activity_trace_entry_t *entry){
   fprintf(hcc_activity_file_handle, "%lu:%lu %d:%lu %s:%lu:%u\n",
     entry->record->begin_ns, entry->record->end_ns,
@@ -663,7 +664,7 @@ void pool_activity_callback(const char* begin, const char* end, void* arg) {
           entry->valid.store(roctracer::TRACE_ENTRY_COMPL, std::memory_order_release);
         } else {
           hip_activity_trace_entry_t hip_activity_trace_entry = {record, name, my_pid};
-          hip_activity_flush_cb(&hip_activity_trace_entry);
+          hip_activity_flush_cb_ptr(&hip_activity_trace_entry);
         }
         break;
       case ACTIVITY_DOMAIN_HSA_OPS:
@@ -1246,7 +1247,18 @@ extern "C" PUBLIC_API bool OnLoad(HsaApiTable* table, uint64_t runtime_version, 
     }
 
     if (trace_hip_activity) {
-      hcc_activity_file_handle = open_output_file(output_prefix, "hcc_ops_trace.txt");
+      if(!output_plugin_enabled){
+        hcc_activity_file_handle = open_output_file(output_prefix, "hcc_ops_trace.txt");
+        hip_activity_flush_cb_ptr = hip_activity_flush_cb;
+      }else{
+        init_plugin_lib(output_prefix, ACTIVITY_DOMAIN_HCC_OPS);
+        hip_activity_flush_cb_ptr = (void (*)(hip_activity_trace_entry_t *entry))dlsym(dl_handle, "hip_activity_flush_cb");
+        if (!hip_activity_flush_cb_ptr) {
+          printf("error: %s\n", dlerror());
+          abort();		
+        }			
+      }
+    
       ROCTRACER_CALL(roctracer_enable_domain_activity(ACTIVITY_DOMAIN_HCC_OPS));
 
       if (is_stats_opt) {
