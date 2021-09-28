@@ -970,9 +970,8 @@ void tool_load() {
     control_len_us = ctrl_len;
     control_delay_us = ctrl_delay;
 
-    roctracer_stop();
-
     if (ctrl_delay != UINT32_MAX) {
+      roctracer_stop();
       fprintf(stdout, "ROCTracer: trace control: delay(%uus), length(%uus), rate(%uus)\n", ctrl_delay, ctrl_len, ctrl_rate); fflush(stdout);
       pthread_t thread;
       pthread_attr_t attr;
@@ -1151,6 +1150,13 @@ extern "C" PUBLIC_API bool OnLoad(HsaApiTable* table, uint64_t runtime_version, 
   HsaRsrcFactory::Instance().DumpHandles(handles_file_handle);
   close_output_file(handles_file_handle);
 
+  const char* ctrl_str = getenv("ROCP_CTRL_RATE");
+  if (ctrl_str != NULL) {
+    uint32_t ctrl_delay = 0;
+    sscanf(ctrl_str, "%d", &ctrl_delay);
+    if (ctrl_delay == UINT32_MAX)
+      roctracer_stop();
+  }
   ONLOAD_TRACE_END();
   return true;
 }
