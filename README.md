@@ -73,3 +73,8 @@ rocTX API:
  or
   make package && dpkg -i *.deb
 ```
+
+## Known Issues:
+- For workloads where the hip application might make more than 10 million HIP API calls, the application might crash with the error - "Profiling data corrupted"
+  - Suggested Workaround - Instead of profiling for the complete run, it is suggested to run profiling in parts by using the --trace-period option.
+- OpenMP applications are not fully supported by the roctracer.
