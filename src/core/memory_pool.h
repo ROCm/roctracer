@@ -24,6 +24,7 @@ THE SOFTWARE.
 #define MEMORY_POOL_H_
 
 #include <pthread.h>
+#include <sched.h>
 #include <stdlib.h>
 
 #include <atomic>
@@ -152,7 +153,7 @@ class MemoryPool {
   }
 
   static void sync_reader(const consumer_arg_t* arg) {
-    while(arg->valid.load() == true) PTHREAD_CALL(pthread_yield());
+    while(arg->valid.load() == true) PTHREAD_CALL(sched_yield());
   }
 
   static void* reader_fun(void* consumer_arg) {
