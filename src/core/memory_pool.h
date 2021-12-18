@@ -94,7 +94,7 @@ class MemoryPool {
     void *res;
     PTHREAD_CALL(pthread_join(consumer_thread_, &res));
     if (res != PTHREAD_CANCELED) EXC_ABORT(ROCTRACER_STATUS_ERROR, "consumer thread wasn't stopped correctly");
-    allocator_default(&pool_begin_, 0, alloc_arg_);
+    alloc_fun_(&pool_begin_, 0, alloc_arg_);
   }
 
   template <typename Record>
