@@ -1309,11 +1309,12 @@ static bool is_loaded = false;
 PUBLIC_API bool roctracer_load() {
   ONLOAD_TRACE("begin, loaded(" << is_loaded << ")");
 
-  if (is_loaded == true) return true;
-  is_loaded = true;
+  if (is_loaded == false) {
+      is_loaded = true;
 
-  if (roctracer::cb_journal == NULL) roctracer::cb_journal = new roctracer::CbJournal;
-  if (roctracer::act_journal == NULL) roctracer::act_journal = new roctracer::ActJournal;
+      if (roctracer::cb_journal == NULL) roctracer::cb_journal = new roctracer::CbJournal;
+      if (roctracer::act_journal == NULL) roctracer::act_journal = new roctracer::ActJournal;
+  }
 
   ONLOAD_TRACE_END();
   return true;
@@ -1322,19 +1323,21 @@ PUBLIC_API bool roctracer_load() {
 PUBLIC_API void roctracer_unload() {
   ONLOAD_TRACE("begin, loaded(" << is_loaded << ")");
 
-  if (is_loaded == false) return;
-  is_loaded = false;
+  if (is_loaded == true) {
+    is_loaded = false;
 
-  if (roctracer::cb_journal != NULL) {
-    delete roctracer::cb_journal;
-    roctracer::cb_journal = NULL;
-  }
-  if (roctracer::act_journal != NULL) {
-    delete roctracer::act_journal;
-    roctracer::act_journal = NULL;
+    if (roctracer::cb_journal != NULL) {
+      delete roctracer::cb_journal;
+      roctracer::cb_journal = NULL;
+    }
+    if (roctracer::act_journal != NULL) {
+      delete roctracer::act_journal;
+      roctracer::act_journal = NULL;
+    }
+
+    roctracer::close_output_file(roctracer::kernel_file_handle);
   }
 
-  roctracer::close_output_file(roctracer::kernel_file_handle);
   ONLOAD_TRACE_END();
 }
 
