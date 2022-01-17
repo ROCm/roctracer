@@ -3,38 +3,33 @@
 ROC Tracer API version 2
 ROC-TX API version 1
 
-- The rocTracer API is agnostic to specific runtime and may trace
-the runtime API calls and asynchronous GPU activity.
+- The rocTracer API is runtime-agnostic and can trace the runtime API calls and asynchronous GPU activity.
 - The rocTX API is provided for application code annotation.
 ```
 ## 1. High level overview
 ```
-The goal of the implementation is to provide a runtime independent API
+The goal of the implementation is to provide a runtime-independent API
 for tracing of runtime calls and asynchronous activity, like GPU kernel
-dispatches and memory moves. The tracing includes callback API for
+dispatches and memory move. The tracing includes callback API for
 runtime API tracing and activity API for asynchronous activity records
 logging.
 
-Depending on particular runtime intercepting mechanism, the rocTracer
-library can be dynamically linked, dynamically loaded by the runtime as
-a plugin or some API wrapper can be loaded using LD_PRELOAD.
+Depending on particular runtime intercepting mechanism, the rocTracer library can be dynamically linked and loaded by the runtime as 
+a plugin or an API wrapper can be loaded using LD_PRELOAD.
 The library has a C API.
 
 The rocTracer library is an API that intercepts runtime API calls and
-traces asynchronous activity. The activity tracing results are recorded
-in a ring buffer.
+traces asynchronous activity. The activity-tracing results are recorded in a ring buffer.
 
-The rocTX contains application code instrumentation API to support high
-level correlation of runtime API/activity events. The API includes mark
+RocTX contains application code instrumentation API to support high-level correlation of runtime API/activity events. The API includes mark
 and nested ranges.
 ```
 ## 2. General API
 ### 2.1. Description
 ```
-The library supports method for getting the error number and error string
-of the last failed library API call. It allows to check the conformance
-of used library API header and the library binary, the version macros and
-API methods can be used.
+The library supports methods for getting the error number and error string
+of the last failed library API call. It allows checking the conformance
+of the used library API header, the library binary, the version macros, and the used API methods.
 
 Returning the error and error string methods:
 •	roctracer_status_t – error code enumeration
@@ -66,14 +61,14 @@ const char* roctracer_error_string();
 ```
 ### 2.3. Library version
 ```
-The library provides major and minor versions. Major version is for
-incompatible API changes and minor version for bug fixes.
+The library provides a major version for
+incompatible API changes and a minor version for bug fixes.
 
 API version macros defined in the library API header ‘roctracer.h’:
 ROCTRACER_VERSION_MAJOR
 ROCTRACER_VERSION_MINOR
 
-Methods to check library major and minor venison:
+Methods to check library major and minor version:
 uint32_t roctracer_major_version();
 uint32_t roctracer_minor_version();
 ```
@@ -84,33 +79,26 @@ The rocTracer provides support for runtime API callbacks and activity
 records logging. The APIs of different runtimes at different levels
 are considered as different API domains with assigned domain IDs. For
 example, language level and driver level. The API callbacks provide
-the API calls arguments and are called on  two phases on “enter” and
-on “exit”. The activity records are logged to the ring buffer and can
+the API calls arguments and are invoked on “enter” and
+on “exit” phases. The activity records are logged to the ring buffer and can
 be associated with the respective API calls using the correlation ID.
-Activity API can be used to enable collecting of the records with
+Activity API can be used to enable the collection of records with
 timestamping data for API calls and asynchronous activity like the
-kernel submits, memory copies and barriers
+kernel submits, memory copies, and barriers.
 
 Tracing domains:
-•	roctracer_domain_t – runtime API domains, HIP, HSA, etc…
-•	roctracer_op_string – Return Op string by given domain and
-                              activity Op code
-•	roctracer_op_code –  Return Op code and kind by given string
+•	roctracer_domain_t – Runtime API domains, HIP, HSA, etc.
+•	roctracer_op_string – Returns Op string using given domain and activity Opcode.
+•	roctracer_op_code –  Returns Opcode using given string.
 
 Callback API:
-•	roctracer_rtapi_callback_t  – runtime API callback type
-•	roctracer_enable_op_callback – enable runtime API callback
-                                       by domain and Op code
-•	roctracer_enable_domain_callback – enable runtime API callback
-                                           by domain for all Ops
-•	roctracer_enable_callback – enable runtime API callback for
-                                    all domains, all Ops
-•	roctracer_disable_op_callback – disable runtime API callback
-                                        by domain and Op code
-•	roctracer_enable_op_callback – enable runtime API callback
-                                       by domain for all Ops
-•	roctracer_enable_op_callback – enable runtime API callback for
-                                       all domains, all Ops
+•	roctracer_rtapi_callback_t  – Runtime API callback type
+•	roctracer_enable_op_callback – Enable runtime API callback using domain and Opcode.
+•	roctracer_enable_domain_callback – Enable runtime API callback using the domain for all Ops.
+•	roctracer_enable_callback – Enable runtime API callback for all domains and all Ops.
+•	roctracer_disable_op_callback – Disable runtime API callback using domain and Opcode.
+•	roctracer_enable_op_callback – Enable runtime API callback using the domain for all Ops.
+•	roctracer_enable_op_callback – Enable runtime API callback for all domains and all Ops.
 
 Activity API:
 •	roctracer_record_t – activity record
@@ -132,19 +120,17 @@ Activity API:
 •	roctracer_get_timestamp – return correlated GPU/CPU system timestamp
 
 External correlation ID API:
-•	roctracer_activity_push_external_correlation_id - push an external
-                                                          correlation id for the calling thread
-•	roctracer_activity_pop_external_correlation_id - pop an external
-                                                         correlation id for the calling thread
+•	roctracer_activity_push_external_correlation_id - push an external correlation id for the calling thread
+•	roctracer_activity_pop_external_correlation_id - pop an external correlation id for the calling thread
 
 Tracing control API:
-•	roctracer_start – tracing start
-•	roctracer_stop – tracer stop
+•	roctracer_start – start tracing
+•	roctracer_stop – stop tracing
 
 ```
 ### 3.2. Tracing Domains
 ```
-Various tracing domains are supported. Each domain is assigned with
+Various tracing domains are supported where each domain is assigned with
 a domain ID. The domains include HSA, HIP, and HCC runtime levels. 
 
 Traced API domains:
@@ -159,12 +145,12 @@ typedef enum {
    ACTIVITY_DOMAIN_NUMBER = 7
 } activity_domain_t;
 
-Return name by given domain and Op code:
+Return name using given domain and Opcode:
 const char* roctracer_op_string(  // NULL returned on error and error number is set
    uint32_t domain,		  // tracing domain
-   uint32_t op,	                  // activity op code
-   uint32_t kind);                // activity kind
-Return Op code and kind by given string:
+   uint32_t op,	                  // activity opcode
+   uint32_t kind);                // kind of activity
+Return Op code and kind using given string:
 roctracer_status_t roctracer_op_code(
     uint32_t domain,              // tracing domain
     const char* str,              // [in] op string
@@ -174,8 +160,7 @@ roctracer_status_t roctracer_op_code(
 ### 3.3. Callback API
 ```
 The tracer provides support for runtime API callbacks and activity records
-logging. The API callbacks provide the API calls arguments and are called
-on two phases on “enter”, on “exit”.
+logging. The API callbacks provide the API call arguments and are invoked on the “enter” and “exit” phases.
 
 API phase passed to the callbacks:
 typedef enum {
@@ -222,9 +207,8 @@ roctracer_status_t roctracer_disable_callback();
 ```
 The activity records are asynchronously logged to the pool and can be
 associated with the respective API callbacks using the correlation ID.
-Activity API can be used to enable collecting  the records with
-timestamp data for API calls and GPU activity like kernel submits,
-memory copies, and barriers.
+Activity API can be used to enable the collection of records with
+timestamp data for API calls and GPU activity like kernel submits, memory copies, and barriers.
 
 // Correlation id
 typedef uint64_t activity_correlation_id_t;
@@ -336,6 +320,7 @@ roctracer_status_t roctracer_enable_activity();
 
 roctracer_status_t roctracer_enable_activity_expl(
    roctracer_pool_t* pool);          // memory pool, NULL means default pool
+
 
 Disable activity records logging:
 roctracer_status_t roctracer_disable_op_activity(
@@ -462,13 +447,13 @@ int main() {
 ```
 ### 4.2. MatrixTranspose HIP sample with all APIs/activity tracing enabled
 ```
-This shows a MatrixTranspose HIP sample with enabled tracing of
-all HIP API and all GPU asynchronous activity.
+This shows a MatrixTranspose HIP sample with the tracing of
+all HIP API and all GPU asynchronous activity enabled.
 
 /*
 Copyright (c) 2015-2016 Advanced Micro Devices, Inc. All rights reserved.
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
+Permission is here by granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
 in the Software without restriction, including without limitation the rights
 to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
@@ -480,7 +465,7 @@ all copies or substantial portions of the Software.
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
+FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL THE
 AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
@@ -734,15 +719,15 @@ void stop_tracing() {
 ## 5. rocTX application code annotation API
 ```
 Basic annotation API: markers and nested ranges.
-// A marker created by given ASCII massage
+// A marker created by given ASCII message
 void roctxMark(const char* message);
 
-// Returns the 0 based level of a nested range being started by given message associated to this range.
+// Returns the 0 based level of a nested range started by a given message associated with this range.
 // A negative value is returned on the error.
 int roctxRangePush(const char* message);
 
 // Marks the end of a nested range.
-// Returns the 0 based level the range.
-// A negative value is returned on the error.
+// Returns the 0 based level of the range.
+// A negative value is returned on error.
 int roctxRangePop();
 ```
