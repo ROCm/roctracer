@@ -62,7 +62,10 @@ rocTX API:
 
  - To build roctracer library:
   export CMAKE_BUILD_TYPE=<debug|release> # release by default
+  
   cd <your path>/roctracer && mkdir build && cd build && cmake -DCMAKE_INSTALL_PREFIX=/opt/rocm .. && make -j <nproc>
+ or
+  ./build.sh
 
  - To build and run test:
   make mytest
