@@ -140,7 +140,7 @@ PUBLIC_API int roctxRangePushA(const char* message) {
   void* api_callback_arg = NULL;
   roctx::cb_table.get(ROCTX_API_ID_roctxRangePushA, &api_callback_fun, &api_callback_arg);
   if (api_callback_fun) api_callback_fun(ACTIVITY_DOMAIN_ROCTX, ROCTX_API_ID_roctxRangePushA, &api_data, api_callback_arg);
-  roctx::message_stack->push(strdup(message));
+  roctx::message_stack->emplace(message);
 
   return roctx::message_stack->size() - 1;
   API_METHOD_CATCH(-1);
