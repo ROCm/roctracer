@@ -24,6 +24,7 @@ THE SOFTWARE.
 #define MEMORY_POOL_H_
 
 #include <pthread.h>
+#include <sched.h>
 #include <stdlib.h>
 
 #include <atomic>
