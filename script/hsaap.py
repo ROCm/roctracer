@@ -335,13 +335,13 @@ class API_DescrParser:
     self.cpp_content += '#include \"util/callback_table.h\"\n\n'
     self.cpp_content += '#include <atomic>\n'
     self.cpp_content += 'namespace roctracer {\n'
+    self.cpp_content += 'extern activity_correlation_id_t NextCorrelationId();\n'
     self.cpp_content += 'namespace hsa_support {\n\n'
 
     self.cpp_content += 'static CoreApiTable CoreApi_saved_before_cb;\n'
     self.cpp_content += 'static AmdExtTable AmdExt_saved_before_cb;\n'
     self.cpp_content += 'static ImageExtTable ImageExt_saved_before_cb;\n\n'
 
-    self.cpp_content += 'std::atomic<uint64_t> hsa_counter_{1};\n'
     self.cpp_content += 'static thread_local uint64_t hsa_correlation_id_tls = 0;\n'
 
     self.cpp_content += self.add_section('API callback functions', '', self.gen_callbacks)
@@ -430,7 +430,7 @@ class API_DescrParser:
             content += '  api_data.args.' + call + '.' + var + '__val = ' + '*(' + var + ');\n'
       content += '  auto [ api_callback_fun, api_callback_arg ] = cb_table.Get(' + call_id + ');\n'
       content += '  api_data.phase = 0;\n'
-      content += '  api_data.correlation_id = hsa_support::hsa_counter_.fetch_add(1, std::memory_order_relaxed);\n'
+      content += '  api_data.correlation_id = NextCorrelationId();\n'
       content += '  hsa_correlation_id_tls = api_data.correlation_id;\n'
       content += '  if (api_callback_fun) api_callback_fun(ACTIVITY_DOMAIN_HSA_API, ' + call_id + ', &api_data, api_callback_arg);\n'
       if ret_type != 'void':

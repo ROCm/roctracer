@@ -161,7 +161,7 @@ roctracer_status_t GetExcStatus(const std::exception& e) {
   return (roctracer_exc_ptr) ? roctracer_exc_ptr->status() : ROCTRACER_STATUS_ERROR;
 }
 
-static auto NextCorrelationId() {
+activity_correlation_id_t NextCorrelationId() {
   static std::atomic<uint64_t> counter{1};
   return counter.fetch_add(1, std::memory_order_relaxed);
 }
