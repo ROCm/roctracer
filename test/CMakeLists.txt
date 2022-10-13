@@ -20,6 +20,8 @@
 ## IN THE SOFTWARE.
 ################################################################################
 
+get_property(HSA_RUNTIME_INCLUDE_DIRECTORIES TARGET hsa-runtime64::hsa-runtime64 PROPERTY INTERFACE_INCLUDE_DIRECTORIES)
+
 # Set the HIP language runtime link flags as FindHIP does not set them.
 set(CMAKE_EXECUTABLE_RUNTIME_HIP_FLAG ${CMAKE_SHARED_LIBRARY_RUNTIME_CXX_FLAG})
 set(CMAKE_EXECUTABLE_RUNTIME_HIP_FLAG_SEP ${CMAKE_SHARED_LIBRARY_RUNTIME_CXX_FLAG_SEP})
@@ -67,12 +69,6 @@ target_compile_definitions(MatrixTranspose_ctest PRIVATE HIP_TEST=0 __HIP_PLATFO
 target_include_directories(MatrixTranspose_ctest PRIVATE ${PROJECT_SOURCE_DIR}/inc)
 target_link_libraries(MatrixTranspose_ctest PRIVATE roctracer roctx)
 add_dependencies(mytest MatrixTranspose_ctest)
-
-## Build hsaco_test reference test
-add_library(hsaco_test SHARED app/hsaco_test.cpp)
-target_compile_definitions(hsaco_test PRIVATE AMD_INTERNAL_BUILD)
-target_link_libraries(hsaco_test hsa-runtime64::hsa-runtime64)
-add_dependencies(mytest hsaco_test)
 
 ## Build codeobj event test
 add_library(codeobj_test SHARED app/codeobj_test.cpp)
@@ -132,6 +128,24 @@ add_executable(memory_pool directed/memory_pool.cpp)
 target_include_directories(memory_pool PRIVATE ${PROJECT_SOURCE_DIR}/src/roctracer ${PROJECT_SOURCE_DIR}/inc)
 target_link_libraries(memory_pool Threads::Threads atomic)
 add_dependencies(mytest memory_pool)
+
+## Build the activity_and_callback test
+set_source_files_properties(directed/activity_and_callback.cpp PROPERTIES HIP_SOURCE_PROPERTY_FORMAT 1)
+hip_add_executable(activity_and_callback directed/activity_and_callback.cpp)
+target_link_libraries(activity_and_callback roctracer)
+add_dependencies(mytest activity_and_callback)
+
+## Build the multi_pool_activities test
+set_source_files_properties(directed/multi_pool_activities.cpp PROPERTIES HIP_SOURCE_PROPERTY_FORMAT 1)
+hip_add_executable(multi_pool_activities directed/multi_pool_activities.cpp)
+target_link_libraries(multi_pool_activities roctracer)
+add_dependencies(mytest multi_pool_activities)
+
+## Build the dlopen test
+add_executable(dlopen directed/dlopen.cpp)
+target_include_directories(dlopen PRIVATE ${PROJECT_SOURCE_DIR}/inc ${HSA_RUNTIME_INCLUDE_DIRECTORIES})
+target_link_libraries(dlopen dl)
+add_dependencies(mytest dlopen)
 
 ## Copy the golden traces and test scripts
 configure_file(run.sh ${PROJECT_BINARY_DIR} COPYONLY)

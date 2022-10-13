@@ -1,4 +1,4 @@
-/* Copyright (c) 2018-2022 Advanced Micro Devices, Inc.
+/* Copyright (c) 2022 Advanced Micro Devices, Inc.
 
  Permission is hereby granted, free of charge, to any person obtaining a copy
  of this software and associated documentation files (the "Software"), to deal
@@ -18,20 +18,37 @@
  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  THE SOFTWARE. */
 
-#ifndef ROCTRACER_HIP_H_
-#define ROCTRACER_HIP_H_
+#ifndef HSA_SUPPORT_H_
+#define HSA_SUPPORT_H_
 
 #include "roctracer.h"
+#include "roctracer_hsa.h"
 
-#include <hip/hip_runtime.h>
-#include "hip_ostream_ops.h"
-#include <hip/amd_detail/hip_prof_str.h>
+#include <hsa/hsa_api_trace.h>
 
-typedef enum {
-  HIP_OP_ID_DISPATCH = 0,
-  HIP_OP_ID_COPY = 1,
-  HIP_OP_ID_BARRIER = 2,
-  HIP_OP_ID_NUMBER = 3
-} hip_op_id_t;
+namespace roctracer::hsa_support {
 
-#endif  // ROCTRACER_HIP_H_
+struct hsa_trace_data_t {
+  hsa_api_data_t api_data;
+  uint64_t phase_enter_timestamp;
+  uint64_t phase_data;
+
+  void (*phase_enter)(hsa_api_id_t operation_id, hsa_trace_data_t* data);
+  void (*phase_exit)(hsa_api_id_t operation_id, hsa_trace_data_t* data);
+};
+
+void Initialize(HsaApiTable* table);
+void Finalize();
+
+const char* GetApiName(uint32_t id);
+const char* GetEvtName(uint32_t id);
+const char* GetOpsName(uint32_t id);
+uint32_t GetApiCode(const char* str);
+
+void RegisterTracerCallback(int (*function)(activity_domain_t domain, uint32_t operation_id,
+                                            void* data));
+uint64_t timestamp_ns();
+
+}  // namespace roctracer::hsa_support
+
+#endif  // HSA_SUPPORT_H_
