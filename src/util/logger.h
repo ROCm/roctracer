@@ -1,24 +1,22 @@
-/*
-Copyright (c) 2018 Advanced Micro Devices, Inc. All rights reserved.
+/* Copyright (c) 2018-2022 Advanced Micro Devices, Inc.
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+ Permission is hereby granted, free of charge, to any person obtaining a copy
+ of this software and associated documentation files (the "Software"), to deal
+ in the Software without restriction, including without limitation the rights
+ to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ copies of the Software, and to permit persons to whom the Software is
+ furnished to do so, subject to the following conditions:
 
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
+ The above copyright notice and this permission notice shall be included in
+ all copies or substantial portions of the Software.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.
-*/
+ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ THE SOFTWARE. */
 
 #ifndef SRC_UTIL_LOGGER_H_
 #define SRC_UTIL_LOGGER_H_
@@ -41,8 +39,7 @@ THE SOFTWARE.
 #include <mutex>
 #include <map>
 
-namespace roctracer {
-namespace util {
+namespace roctracer::util {
 
 class Logger {
  public:
@@ -166,36 +163,42 @@ class Logger {
   std::map<uint32_t, std::string> message_;
 };
 
-}  // namespace util
-}  // namespace roctracer
+}  // namespace roctracer::util
+
+#define FATAL_LOGGING(stream)                                                                      \
+  do {                                                                                             \
+    roctracer::util::Logger::Instance()                                                            \
+        << "fatal: " << roctracer::util::Logger::begm << stream << roctracer::util::Logger::endl;  \
+    abort();                                                                                       \
+  } while (0)
 
 #define ERR_LOGGING(stream)                                                                        \
-  do {                                                                                                \
-    roctracer::util::Logger::Instance() << "error: " << roctracer::util::Logger::begm          \
-                                          << stream << roctracer::util::Logger::endl;            \
-  } while(0)
+  do {                                                                                             \
+    roctracer::util::Logger::Instance()                                                            \
+        << "error: " << roctracer::util::Logger::begm << stream << roctracer::util::Logger::endl;  \
+  } while (0)
 
 #define INFO_LOGGING(stream)                                                                       \
-  do {                                                                                                \
-    roctracer::util::Logger::Instance() << "info: " << roctracer::util::Logger::begm << stream \
-                                          << roctracer::util::Logger::endl;                      \
-  } while(0)
+  do {                                                                                             \
+    roctracer::util::Logger::Instance()                                                            \
+        << "info: " << roctracer::util::Logger::begm << stream << roctracer::util::Logger::endl;   \
+  } while (0)
 
 #define WARN_LOGGING(stream)                                                                       \
-  do {                                                                                                \
-    std::cerr << "ROCProfiler: " << stream << std::endl;                                                              \
-    roctracer::util::Logger::Instance() << "warning: " << roctracer::util::Logger::begm << stream \
-                                          << roctracer::util::Logger::endl;                      \
-  } while(0)
+  do {                                                                                             \
+    std::cerr << "ROCProfiler: " << stream << std::endl;                                           \
+    roctracer::util::Logger::Instance() << "warning: " << roctracer::util::Logger::begm << stream  \
+                                        << roctracer::util::Logger::endl;                          \
+  } while (0)
 
 #ifdef DEBUG
 #define DBG_LOGGING(stream)                                                                        \
-  do {                                                                                                \
-    roctracer::util::Logger::Instance() << roctracer::util::Logger::begm << "debug: \""        \
-                                          << stream << "\"" < < < <                                \
-        " in " << __FUNCTION__ << " at " << __FILE__ << " line " << __LINE__                       \
-               << roctracer::util::Logger::endl;                                                 \
-  } while(0)
+  do {                                                                                             \
+    roctracer::util::Logger::Instance()                                                            \
+        << roctracer::util::Logger::begm << "debug: \"" << stream << "\""                          \
+        << " in " << __FUNCTION__ << " at " << __FILE__ << " line " << __LINE__                    \
+        << roctracer::util::Logger::endl;                                                          \
+  } while (0)
 #endif
 
 #if DEBUG_TRACE_ON
@@ -206,12 +209,12 @@ inline static void DEBUG_TRACE(const char* fmt, ...) {
   va_list valist;
   va_start(valist, fmt);
   vsnprintf(buf, size, fmt, valist);
-  printf("%u:%u %s",
-    roctracer::util::Logger::GetPid(), roctracer::util::Logger::GetTid(), buf); fflush(stdout);
+  printf("%u:%u %s", roctracer::util::Logger::GetPid(), roctracer::util::Logger::GetTid(), buf);
+  fflush(stdout);
   va_end(valist);
 }
 #else
-inline static void DEBUG_TRACE(const char* fmt, ...) {}
+#define DEBUG_TRACE(...)
 #endif
 
 #endif  // SRC_UTIL_LOGGER_H_

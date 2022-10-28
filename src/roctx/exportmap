@@ -1,0 +1,12 @@
+ROCTX_4.1 {
+global: RegisterApiCallback;
+        RemoveApiCallback;
+        roctxMarkA;
+        roctxRangePop;
+        roctxRangePushA;
+        roctxRangeStartA;
+        roctxRangeStop;
+        roctx_version_major;
+        roctx_version_minor;
+local:  *;
+};

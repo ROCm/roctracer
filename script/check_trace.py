@@ -1,22 +1,26 @@
-#Copyright (c) 2015-present Advanced Micro Devices, Inc. All rights reserved.
+#!/usr/bin/env python3
+
+################################################################################
+# Copyright (c) 2018-2022 Advanced Micro Devices, Inc.
 #
-#Permission is hereby granted, free of charge, to any person obtaining a copy
-#of this software and associated documentation files (the "Software"), to deal
-#in the Software without restriction, including without limitation the rights
-#to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-#copies of the Software, and to permit persons to whom the Software is
-#furnished to do so, subject to the following conditions:
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to
+# deal in the Software without restriction, including without limitation the
+# rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
+# sell copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
 #
-#The above copyright notice and this permission notice shall be included in
-#all copies or substantial portions of the Software.
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
 #
-#THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-#IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-#FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
-#AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-#LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-#OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-#THE SOFTWARE.
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+# FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+# IN THE SOFTWARE.
+################################################################################
 
 import sys, os, re
 import filecmp
@@ -26,7 +30,7 @@ events_count = {}
 events_order = {}
 events_order_r = {}
 trace2info = {}
-trace2info_filename = 'test/tests_trace_cmp_levels.txt'
+trace2info_filename = 'test/golden_traces/tests_trace_cmp_levels.txt'
 
 # Parses trace comparison config file and stores the info in a dictionary
 def parse_trace_levels(trace_config_filename, check_trace_flag):
@@ -149,8 +153,8 @@ def check_trace_status(tracename, verbose, check_trace_flag):
       print('PASSED!')
       return 0
 
-  trace = 'test/' + tracename + '.txt'
-  rtrace = tracename + '.txt'
+  trace = 'test/golden_traces/' + tracename + '.txt'
+  rtrace = 'test/out/' + tracename + '.out'
   if os.path.basename(tracename) in trace2info.keys():
     (trace_level, no_events_cnt, events2ignore, events2chkcnt, events2chkord, events2ch) = trace2info[os.path.basename(tracename)]
     trace_level = trace_level.rstrip('\n')
@@ -241,6 +245,7 @@ def gen_events_info(tracefile, trace_level, no_events_cnt, events2ignore, events
   # 1822810364769411:1822810364771941 116477:116477 hsa_agent_get_info(<agent 0x8990e0>, 17, 0x7ffeac015fec) = 0
   # tool_gpu_act_record
   # 3632773658039902:3632773658046462 0:0 hcCommandMarker:273
+  roctx_record = re.compile(r'\d+\s\d+:(\d)+\s(\d):\d+:\".*\"')
 
   with open(tracefile) as f:
     for line in f:
@@ -260,6 +265,10 @@ def gen_events_info(tracefile, trace_level, no_events_cnt, events2ignore, events
       if tool_record_match:
         event = tool_record_match.group(2)
         tid = int(tool_record_match.group(1))
+      roctx_record_match = roctx_record.match(line)
+      if roctx_record_match:
+        event = roctx_record_match.group(2)
+        tid = int(roctx_record_match.group(1))
       if event == '' or event == '(null)': #some traces has these null events
         continue
 
@@ -270,7 +279,8 @@ def gen_events_info(tracefile, trace_level, no_events_cnt, events2ignore, events
         if event in events_count:
           events_count[event] = events_count[event] + 1
         else:
-          events_count[event] = 1
+          if not re.search(re_no_events_cnt,event):
+            events_count[event] = 1
 
       if metric == 'or' and re.search(re_events2chkord,event):
         if tid in events_order.keys():

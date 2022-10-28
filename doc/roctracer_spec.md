@@ -390,7 +390,6 @@ void roctracer_stop();
 ### 4.1. HIP API and HCC ops, GPU Activity Tracing
 ```
 #include <roctracer_hip.h>
-#include <roctracer_hcc.h>
 
 // HIP API callback function
 void hip_api_callback(
@@ -446,11 +445,11 @@ int main() {
    ROCTRACER_CALL(roctracer_enable_op_callback(ACTIVITY_DOMAIN_HIP_API,
                                      HIP_API_ID_hipModuleLaunchKernel,
                                      hip_api_callback, NULL));
-   ROCTRACER_CALL(roctracer_enable_op_acticity(ACTIVITY_DOMAIN_HIP_API,
+   ROCTRACER_CALL(roctracer_enable_op_activity(ACTIVITY_DOMAIN_HIP_API,
                                      HIP_API_ID_hipModuleLaunchKernel));
    // Enable HIP kernel dispatch activity tracing
-   ROCTRACER_CALL(roctracer_enable_op_activity(ACTIVITY_DOMAIN_HCC_OPS,
-                                               hc::HSA_OP_ID_DISPATCH));
+   ROCTRACER_CALL(roctracer_enable_op_activity(ACTIVITY_DOMAIN_HIP_OPS,
+                                               HIP_OP_ID_DISPATCH));
 
    <test code>
 
@@ -611,7 +610,6 @@ int main() {
 // HIP/HCC Callbacks/Activity tracing
 /////////////////////////////////////////////////////////////////////////////
 #include <roctracer_hip.h>
-#include <roctracer_hcc.h>
 
 // Macro to check ROC-tracer calls status
 #define ROCTRACER_CALL(call)                                               \

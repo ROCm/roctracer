@@ -27,23 +27,18 @@ BIN_NAME=`basename $0`
 BIN_DIR=`dirname $0`
 cd $BIN_DIR
 
-IS_CI=0
-if [ "$BIN_NAME" = "run_ci.sh" ] ; then
-  IS_CI=1
-fi
-
 # enable tools load failure reporting
 export HSA_TOOLS_REPORT_LOAD_FAILURE=1
 # paths to ROC profiler and other libraries
-export LD_LIBRARY_PATH=$PWD
-if [ $IS_CI = 1 ] ; then
-  export LD_LIBRARY_PATH=/opt/rocm/roctracer/lib
-fi
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$PWD
 if [ -n "$ROCTRACER_LIB_PATH" ] ; then
-  export LD_LIBRARY_PATH=$ROCTRACER_LIB_PATH
+  export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$ROCTRACER_LIB_PATH
+fi
+if [ -z "$ROCTRACER_LIB_PATH" ] ; then
+  ROCTRACER_LIB_PATH="."
 fi
 if [ -z "$ROCTRACER_TOOL_PATH" ] ; then
-  ROCTRACER_TOOL_PATH="./test"
+  ROCTRACER_TOOL_PATH="."
 fi
 
 # test filter input
@@ -68,36 +63,41 @@ xeval_test() {
 }
 
 eval_test() {
+  bright=$(tput bold)
+  red=$(tput setaf 1)
+  green=$(tput setaf 2)
+  blue=$(tput setaf 4)
+  normal=$(tput sgr0)
+
   label=$1
   cmdline=$2
   test_name=$3
-  test_trace=$test_name.txt
 
   if [ $test_filter = -1  -o $test_filter = $test_number ] ; then
     echo "test $test_number: $test_name \"$label\""
     echo "CMD: \"$cmdline\""
+    mkdir -p test/out
     test_runnum=$((test_runnum + 1))
-    eval "$cmdline" >$test_trace 2>&1
+    eval "$cmdline" 1>test/out/$test_name.out 2>test/out/$test_name.err
     is_failed=$?
     if [ $is_failed != 0 ] ; then
-      cat $test_trace
+      echo "--- stdout ---"
+      cat test/out/$test_name.out
+      echo "--- stderr ---"
+      cat test/out/$test_name.err
     fi
-    if [ $IS_CI = 1 ] ; then
-      is_failed=0;
-    else
-      if [ $is_failed = 0 ] ; then
-        python3 ./test/check_trace.py -in $test_name -ck $check_trace_flag
-        is_failed=$?
-        if [ $is_failed != 0 ] ; then
-          echo "Trace checker error:"
-          python3 ./test/check_trace.py -v -in $test_name -ck $check_trace_flag
-        fi
+    if [ $is_failed = 0 ] ; then
+      python3 ./test/check_trace.py -in $test_name -ck $check_trace_flag
+      is_failed=$?
+      if [ $is_failed != 0 ] ; then
+        echo "Trace checker error:"
+        python3 ./test/check_trace.py -v -in $test_name -ck $check_trace_flag
       fi
     fi
     if [ $is_failed = 0 ] ; then
-      echo "$test_name: PASSED"
+      echo "${bright}${blue}$test_name: ${green}PASSED${normal}"
     else
-      echo "$test_name: FAILED"
+      echo "${bright}${blue}$test_name: ${red}FAILED${normal}"
       failed_tests="$failed_tests\n  $test_number: $test_name - \"$label\""
       test_status=$(($test_status + 1))
     fi
@@ -108,18 +108,22 @@ eval_test() {
 
 # Tests dry run
 eval_test "MatrixTranspose dry run" ./test/MatrixTranspose MatrixTranspose_dryrun_trace
-eval_test "ctrl dry run" ./test/hsa/ctrl ctrl_dryrun_trace
+eval_test "copy dry run" ./test/copy copy_dryrun_trace
 
 # Standalone test
-# rocTrecer is used explicitely by test
+# ROCtracer is used explicitely by test
 eval_test "standalone C test" "./test/MatrixTranspose_ctest" MatrixTranspose_ctest_trace
 eval_test "standalone HIP test" "./test/MatrixTranspose_test" MatrixTranspose_test_trace
 eval_test "standalone HIP hipaact test" "./test/MatrixTranspose_hipaact_test" MatrixTranspose_hipaact_test_trace
 eval_test "standalone HIP MGPU test" "./test/MatrixTranspose_mgpu" MatrixTranspose_mgpu_trace
 
 # Tool test
-# rocTracer/tool is loaded by HSA runtime
-export HSA_TOOLS_LIB="$ROCTRACER_TOOL_PATH/libtracer_tool.so"
+# ROCtracer/tool is loaded by HSA runtime
+export LD_PRELOAD="$ROCTRACER_TOOL_PATH/libroctracer_tool.so"
+
+# ROCTX test
+export ROCTRACER_DOMAIN="roctx"
+eval_test "roctx test" ./test/roctx_test roctx_test_trace
 
 # SYS test
 export ROCTRACER_DOMAIN="sys:roctx"
@@ -128,13 +132,14 @@ export ROCTRACER_DOMAIN="sys:hsa:roctx"
 eval_test "tool SYS/HSA test" ./test/MatrixTranspose MatrixTranspose_sys_hsa_trace
 # Tracing control <delay:length:rate>
 export ROCTRACER_DOMAIN="hip"
-eval_test "tool period test" "ROCP_CTRL_RATE=10:100000:1000000 ./test/MatrixTranspose" MatrixTranspose_hip_period_trace
+eval_test "tool period test" "ROCP_CTRL_RATE=10:50000:500000 ./test/MatrixTranspose" MatrixTranspose_hip_period_trace
 eval_test "tool flushing test" "ROCP_FLUSH_RATE=100000 ./test/MatrixTranspose" MatrixTranspose_hip_flush_trace
 
 #API records filtering
-echo "<trace name=\"HIP\"><parameters api=\"hipFree, hipMalloc, hipMemcpy\"></parameters></trace>" > input.xml
-export ROCP_INPUT=input.xml
-eval_test "tool HIP test input" ./test/MatrixTranspose hip_input_trace
+echo "<trace name=\"HIP\"><parameters api=\"hipFree, hipMalloc, hipMemcpy\"></parameters></trace>" > test/input.xml
+export ROCP_INPUT=test/input.xml
+eval_test "tool HIP test input" ./test/MatrixTranspose MatrixTranspose_hip_input_trace
+unset ROCP_INPUT
 
 # HSA test
 export ROCTRACER_DOMAIN="hsa"
@@ -151,22 +156,31 @@ export ROCP_AGENTS=1
 # each thread creates a queue pre GPU agent
 export ROCP_THRS=1
 
-eval_test "tool HSA test" ./test/hsa/ctrl ctrl_hsa_trace
+eval_test "tool HSA test" ./test/copy copy_hsa_trace
 
-echo "<trace name=\"HSA\"><parameters api=\"hsa_agent_get_info, hsa_amd_memory_pool_allocate\"></parameters></trace>" > input.xml
-export ROCP_INPUT=input.xml
-eval_test "tool HSA test input" ./test/hsa/ctrl ctrl_hsa_input_trace
+echo "<trace name=\"HSA\"><parameters api=\"hsa_agent_get_info, hsa_amd_memory_pool_allocate\"></parameters></trace>" > test/input.xml
+export ROCP_INPUT=test/input.xml
+eval_test "tool HSA test input" ./test/copy copy_hsa_input_trace
+unset ROCP_INPUT
 
-export HSA_TOOLS_LIB=./test/libhsaco_test.so
+# Check that the tracer tool can be unloaded and then reloaded.
+eval_test "Load/Unload/Reload the tracer tool" ./test/load_unload_reload_test load_unload_reload_trace
+
+export HSA_TOOLS_LIB="./test/libhsaco_test.so"
 eval_test "tool HSA codeobj" ./test/MatrixTranspose hsa_co_trace
 
 export ROCP_TOOL_LIB=./test/libcodeobj_test.so
-export HSA_TOOLS_LIB=librocprofiler64.so
+export HSA_TOOLS_LIB="librocprofiler64.so"
 eval_test "tool tracer codeobj" ./test/MatrixTranspose code_obj_trace
 
 #valgrind --leak-check=full $tbin
 #valgrind --tool=massif $tbin
 #ms_print massif.out.<N>
+
+eval_test "directed TraceBuffer test" ./test/trace_buffer trace_buffer
+eval_test "directed MemoryPool test" ./test/memory_pool memory_pool
+
+eval_test "backward compatibilty tests" ./test/backward_compat_test backward_compat_test_trace
 
 echo "$test_number tests total / $test_runnum tests run / $test_status tests failed"
 if [ $test_status != 0 ] ; then

@@ -1,219 +1,190 @@
 ################################################################################
+## Copyright (c) 2018-2022 Advanced Micro Devices, Inc.
 ##
-## Copyright (c) 2016 Advanced Micro Devices, Inc. All rights reserved.
+## Permission is hereby granted, free of charge, to any person obtaining a copy
+## of this software and associated documentation files (the "Software"), to
+## deal in the Software without restriction, including without limitation the
+## rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
+## sell copies of the Software, and to permit persons to whom the Software is
+## furnished to do so, subject to the following conditions:
 ##
-## MIT LICENSE:
-## Permission is hereby granted, free of charge, to any person obtaining a copy of
-## this software and associated documentation files (the "Software"), to deal in
-## the Software without restriction, including without limitation the rights to
-## use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
-## of the Software, and to permit persons to whom the Software is furnished to do
-## so, subject to the following conditions:
-##
-## The above copyright notice and this permission notice shall be included in all
-## copies or substantial portions of the Software.
+## The above copyright notice and this permission notice shall be included in
+## all copies or substantial portions of the Software.
 ##
 ## THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 ## IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-## FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
+## FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
 ## AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-## LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-## OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-## SOFTWARE.
-##
+## LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+## FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+## IN THE SOFTWARE.
 ################################################################################
 
-cmake_minimum_required ( VERSION 3.5.0 )
+cmake_minimum_required(VERSION 3.18.0)
 
-## Verbose output.
-set ( CMAKE_VERBOSE_MAKEFILE TRUE CACHE BOOL "Verbose Output" FORCE )
+project(roctracer VERSION 4.1.0)
 
-## Set module name and project name.
-set ( ROCTRACER_NAME "roctracer" )
-set ( ROCTRACER_TARGET "${ROCTRACER_NAME}64" )
-set ( ROCTRACER_LIBRARY "lib${ROCTRACER_TARGET}" )
-project ( ${ROCTRACER_TARGET} )
-
-## Adding default path cmake modules
-list ( APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake_modules" )
-## Include common cmake modules
-include ( utils )
-## Set build environment
-include ( env )
-
-## Setup the package version.
-get_version ( "1.0.0" )
-
-set ( BUILD_VERSION_MAJOR ${VERSION_MAJOR} )
-set ( BUILD_VERSION_MINOR ${VERSION_MINOR} )
-set ( BUILD_VERSION_PATCH ${VERSION_PATCH} )
-
-if ( DEFINED VERSION_BUILD AND NOT ${VERSION_BUILD} STREQUAL "" )
-  message ( "VERSION BUILD DEFINED ${VERSION_BUILD}" )
-  set ( BUILD_VERSION_PATCH "${BUILD_VERSION_PATCH}-${VERSION_BUILD}" )
-endif ()
-
-set ( LIB_VERSION_MAJOR ${BUILD_VERSION_MAJOR} )
-set ( LIB_VERSION_MINOR ${BUILD_VERSION_MINOR} )
-if (DEFINED ENV{ROCM_LIBPATCH_VERSION})
-  set (LIB_VERSION_PATCH $ENV{ROCM_LIBPATCH_VERSION} )
-else ()
-  set (LIB_VERSION_PATCH ${BUILD_VERSION_PATCH} )
+include(GNUInstallDirs)
+# set default ROCM_PATH
+if(NOT DEFINED ROCM_PATH)
+    set(ROCM_PATH "/opt/rocm"  CACHE STRING "Default ROCM installation directory")
 endif()
-set ( LIB_VERSION_STRING "${LIB_VERSION_MAJOR}.${LIB_VERSION_MINOR}.${LIB_VERSION_PATCH}" )
-message ( "-- LIB-VERSION: ${LIB_VERSION_MAJOR}.${LIB_VERSION_MINOR}.${LIB_VERSION_PATCH}" )
 
-## Set target and root/lib/test directory
-set ( TARGET_NAME "${ROCTRACER_TARGET}" )
-set ( ROOT_DIR "${CMAKE_CURRENT_SOURCE_DIR}" )
-set ( LIB_DIR "${ROOT_DIR}/src" )
-set ( TEST_DIR "${ROOT_DIR}/test" )
-set ( DEST_NAME ${ROCTRACER_NAME} )
+## Build is not supported on Windows plaform
+if(WIN32)
+  message(FATAL_ERROR "Windows build is not supported.")
+endif()
 
-## Build library
-include ( ${LIB_DIR}/CMakeLists.txt )
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+add_compile_options(-Wall -Werror)
 
-## Set the VERSION and SOVERSION values
-set_property ( TARGET ${TARGET_NAME} PROPERTY VERSION "${LIB_VERSION_STRING}" )
-set_property ( TARGET ${TARGET_NAME} PROPERTY SOVERSION "${LIB_VERSION_MAJOR}" )
+set(THREADS_PREFER_PTHREAD_FLAG ON)
 
-# If the library is a release, strip the target library
-#if ( "${CMAKE_BUILD_TYPE}" STREQUAL release )
-#  add_custom_command ( TARGET ${ROCTRACER_TARGET} POST_BUILD COMMAND ${CMAKE_STRIP} *.so )
-#endif ()
+find_package(Threads REQUIRED)
+
+find_package(hsa-runtime64 REQUIRED CONFIG PATHS ${ROCM_PATH})
+find_package(HIP REQUIRED CONFIG PATHS ${ROCM_PATH})
+
+if(NOT DEFINED LIBRARY_TYPE)
+  set(LIBRARY_TYPE SHARED)
+endif()
+
+## Build libraries
+add_subdirectory(src)
 
 ## Build tests
-if ( ${LIBRARY_TYPE} STREQUAL SHARED )
-add_subdirectory ( ${TEST_DIR} ${PROJECT_BINARY_DIR}/test )
+if(${LIBRARY_TYPE} STREQUAL SHARED)
+  add_subdirectory(test)
 endif()
 
-## pbulic headers
-set ( PUBLIC_HEADERS
-  roctx.h
-  roctracer.h
-  roctracer_ext.h
-  roctracer_hcc.h
-  roctracer_hip.h
-  roctracer_hsa.h
-  roctracer_roctx.h
-  roctracer_cb_table.h
-  ext/prof_protocol.h
-  ext/hsa_rt_utils.hpp
-)
-set ( GEN_HEADERS
-  hip_ostream_ops.h
-  hsa_prof_str.h
-  hsa_ostream_ops.h
-)
-
-if ( ${LIBRARY_TYPE} STREQUAL SHARED )
+if(${LIBRARY_TYPE} STREQUAL SHARED)
 
 ## Installation and packaging
-if ( DEFINED CPACK_PACKAGING_INSTALL_PREFIX )
-  get_filename_component ( DEST_NAME ${CPACK_PACKAGING_INSTALL_PREFIX} NAME )
-  get_filename_component ( DEST_DIR ${CPACK_PACKAGING_INSTALL_PREFIX} DIRECTORY )
-  set ( CPACK_PACKAGING_INSTALL_PREFIX ${DEST_DIR} )
-endif ()
-message ( "-----------Dest-name: ${DEST_NAME}" )
-message ( "------Install-prefix: ${CMAKE_INSTALL_PREFIX}" )
-message ( "-----------CPACK-dir: ${CPACK_PACKAGING_INSTALL_PREFIX}" )
-
-## Install information
-install ( TARGETS ${ROCTRACER_TARGET} LIBRARY DESTINATION lib )
-foreach ( header ${PUBLIC_HEADERS} )
-  get_filename_component ( header_subdir ${header} DIRECTORY )
-  install ( FILES ${CMAKE_CURRENT_SOURCE_DIR}/inc/${header} DESTINATION include/${DEST_NAME}/${header_subdir} )
-endforeach ()
-foreach ( header ${GEN_HEADERS} )
-  get_filename_component ( header_subdir ${header} DIRECTORY )
-  install ( FILES ${PROJECT_BINARY_DIR}/inc/${header} DESTINATION include/${DEST_NAME}/${header_subdir} )
-endforeach ()
-
-option(FILE_REORG_BACKWARD_COMPATIBILITY "Enable File Reorg with backward compatibility" ON)
-if(FILE_REORG_BACKWARD_COMPATIBILITY)
-  include(roctracer-backward-compat.cmake)
+if(DEFINED CPACK_PACKAGING_INSTALL_PREFIX)
+  get_filename_component(DEST_NAME ${CPACK_PACKAGING_INSTALL_PREFIX} NAME)
+  get_filename_component(DEST_DIR ${CPACK_PACKAGING_INSTALL_PREFIX} DIRECTORY)
+  set(CPACK_PACKAGING_INSTALL_PREFIX ${DEST_DIR})
 endif()
-
-## rocTX
-set ( ROCTX_TARGET "roctx64" )
-set ( ROCTX_LIBRARY "lib${ROCTX_TARGET}" )
-
-## Set the VERSION and SOVERSION values
-set_property ( TARGET ${ROCTX_TARGET} PROPERTY VERSION "${LIB_VERSION_STRING}" )
-set_property ( TARGET ${ROCTX_TARGET} PROPERTY SOVERSION "${LIB_VERSION_MAJOR}" )
-
-install ( TARGETS ${ROCTX_TARGET} LIBRARY DESTINATION lib )
+message("-----------Dest-name: ${DEST_NAME}")
+message("------Install-prefix: ${CMAKE_INSTALL_PREFIX}")
+message("-----------CPACK-dir: ${CPACK_PACKAGING_INSTALL_PREFIX}")
 
 ## Packaging directives
-set ( CPACK_GENERATOR "DEB" "RPM" "TGZ" CACHE STRING "CPACK GENERATOR DEB;RPM")
-set ( ENABLE_LDCONFIG ON CACHE BOOL "Set library links and caches using ldconfig.")
-set ( CPACK_PACKAGE_NAME "${ROCTRACER_NAME}-dev" )
-set ( CPACK_PACKAGE_VENDOR "Advanced Micro Devices, Inc." )
-set ( CPACK_PACKAGE_VERSION_MAJOR ${BUILD_VERSION_MAJOR} )
-set ( CPACK_PACKAGE_VERSION_MINOR ${BUILD_VERSION_MINOR} )
-set ( CPACK_PACKAGE_VERSION_PATCH ${BUILD_VERSION_PATCH} )
-set ( CPACK_PACKAGE_VERSION "${CPACK_PACKAGE_VERSION_MAJOR}.${CPACK_PACKAGE_VERSION_MINOR}.${CPACK_PACKAGE_VERSION_PATCH}" )
-if ( DEFINED ENV{ROCM_LIBPATCH_VERSION} )
-  set ( CPACK_PACKAGE_VERSION "${CPACK_PACKAGE_VERSION}.$ENV{ROCM_LIBPATCH_VERSION}" )
-endif()
-message ( "-- CPACK_PACKAGE_VERSION: ${CPACK_PACKAGE_VERSION}"  )
-set ( CPACK_PACKAGE_CONTACT "ROCm Profiler Support <dl.ROCm-Profiler.support@amd.com>" )
-set ( CPACK_PACKAGE_DESCRIPTION_SUMMARY "AMD ROCTRACER library" )
-set ( CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE" )
+set(CPACK_GENERATOR "DEB" "RPM" "TGZ" CACHE STRING "CPACK GENERATOR DEB;RPM")
+set(ENABLE_LDCONFIG ON CACHE BOOL "Set library links and caches using ldconfig.")
+set(CPACK_PACKAGE_NAME "${PROJECT_NAME}-dev")
+set(CPACK_PACKAGE_VENDOR "Advanced Micro Devices, Inc.")
+set(CPACK_PACKAGE_VERSION_MAJOR ${PROJECT_VERSION_MAJOR})
+set(CPACK_PACKAGE_VERSION_MINOR ${PROJECT_VERSION_MINOR})
+set(CPACK_PACKAGE_VERSION_PATCH ${PROJECT_VERSION_PATCH})
+set(CPACK_PACKAGE_VERSION "${CPACK_PACKAGE_VERSION_MAJOR}.${CPACK_PACKAGE_VERSION_MINOR}.${CPACK_PACKAGE_VERSION_PATCH}")
+set(CPACK_PACKAGE_CONTACT "ROCm Profiler Support <dl.ROCm-Profiler.support@amd.com>")
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "AMD ROCTRACER library")
+set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE")
 
-# Install license file
-install(FILES ${CPACK_RESOURCE_FILE_LICENSE} DESTINATION share/doc/${CPACK_PACKAGE_NAME})
+if(DEFINED ENV{ROCM_LIBPATCH_VERSION})
+  set(CPACK_PACKAGE_VERSION "${CPACK_PACKAGE_VERSION}.$ENV{ROCM_LIBPATCH_VERSION}")
+  message("Using CPACK_PACKAGE_VERSION ${CPACK_PACKAGE_VERSION}")
+endif()
+
+## Install license file
+install(FILES ${CPACK_RESOURCE_FILE_LICENSE}
+  DESTINATION ${CMAKE_INSTALL_DOCDIR}
+  COMPONENT runtime)
 
 ## Debian package specific variables
-if ( DEFINED ENV{CPACK_DEBIAN_PACKAGE_RELEASE} )
-  set ( CPACK_DEBIAN_PACKAGE_RELEASE $ENV{CPACK_DEBIAN_PACKAGE_RELEASE} )
+if(DEFINED ENV{CPACK_DEBIAN_PACKAGE_RELEASE})
+  set(CPACK_DEBIAN_PACKAGE_RELEASE $ENV{CPACK_DEBIAN_PACKAGE_RELEASE})
 else()
-  set ( CPACK_DEBIAN_PACKAGE_RELEASE "local" )
+  set(CPACK_DEBIAN_PACKAGE_RELEASE "local")
 endif()
-message ( "Using CPACK_DEBIAN_PACKAGE_RELEASE ${CPACK_DEBIAN_PACKAGE_RELEASE}" )
-set ( CPACK_DEBIAN_FILE_NAME "DEB-DEFAULT" )
-set ( CPACK_DEBIAN_PACKAGE_DEPENDS "rocm-core" )
-## Process the Debian install/remove scripts to update the CPACK variables
-configure_file ( ${CMAKE_CURRENT_SOURCE_DIR}/DEBIAN/postinst.in DEBIAN/postinst @ONLY )
-configure_file ( ${CMAKE_CURRENT_SOURCE_DIR}/DEBIAN/prerm.in DEBIAN/prerm @ONLY )
-set ( CPACK_DEBIAN_PACKAGE_CONTROL_EXTRA "DEBIAN/postinst;DEBIAN/prerm" )
+message("Using CPACK_DEBIAN_PACKAGE_RELEASE ${CPACK_DEBIAN_PACKAGE_RELEASE}")
+set(CPACK_DEB_COMPONENT_INSTALL ON)
+set(CPACK_DEBIAN_FILE_NAME "DEB-DEFAULT")
+set(CPACK_DEBIAN_RUNTIME_PACKAGE_NAME "${PROJECT_NAME}-dev")
+set(CPACK_DEBIAN_RUNTIME_PACKAGE_DEPENDS "rocm-core")
+set(CPACK_DEBIAN_TESTS_PACKAGE_NAME "${PROJECT_NAME}-tests")
+set(CPACK_DEBIAN_TESTS_PACKAGE_DEPENDS "${PROJECT_NAME}-dev")
 
 ## RPM package specific variables
-if ( DEFINED ENV{CPACK_RPM_PACKAGE_RELEASE} )
-  set ( CPACK_RPM_PACKAGE_RELEASE $ENV{CPACK_RPM_PACKAGE_RELEASE} )
+if(DEFINED ENV{CPACK_RPM_PACKAGE_RELEASE})
+  set(CPACK_RPM_PACKAGE_RELEASE $ENV{CPACK_RPM_PACKAGE_RELEASE})
 else()
-  set ( CPACK_RPM_PACKAGE_RELEASE "local" )
+  set(CPACK_RPM_PACKAGE_RELEASE "local")
 endif()
-message ( "Using CPACK_RPM_PACKAGE_RELEASE ${CPACK_RPM_PACKAGE_RELEASE}" )
+message("Using CPACK_RPM_PACKAGE_RELEASE ${CPACK_RPM_PACKAGE_RELEASE}")
 
-set( CPACK_RPM_PACKAGE_LICENSE "MIT" )
+set(CPACK_RPM_PACKAGE_LICENSE "MIT")
 
 ## 'dist' breaks manual builds on debian systems due to empty Provides
-execute_process( COMMAND rpm --eval %{?dist}
-                 RESULT_VARIABLE PROC_RESULT
-                 OUTPUT_VARIABLE EVAL_RESULT
-                 OUTPUT_STRIP_TRAILING_WHITESPACE )
+execute_process(COMMAND rpm --eval %{?dist}
+                RESULT_VARIABLE PROC_RESULT
+                OUTPUT_VARIABLE EVAL_RESULT
+                OUTPUT_STRIP_TRAILING_WHITESPACE)
 message("RESULT_VARIABLE ${PROC_RESULT} OUTPUT_VARIABLE: ${EVAL_RESULT}")
 
-if ( PROC_RESULT EQUAL "0" AND NOT EVAL_RESULT STREQUAL "" )
-  string ( APPEND CPACK_RPM_PACKAGE_RELEASE "%{?dist}" )
+if(PROC_RESULT EQUAL "0" AND NOT EVAL_RESULT STREQUAL "")
+  string(APPEND CPACK_RPM_PACKAGE_RELEASE "%{?dist}")
 endif()
-set ( CPACK_RPM_FILE_NAME "RPM-DEFAULT" )
-set ( CPACK_RPM_PACKAGE_REQUIRES "rocm-core" )
+set(CPACK_RPM_COMPONENT_INSTALL ON)
+set(CPACK_RPM_FILE_NAME "RPM-DEFAULT")
+set(CPACK_RPM_RUNTIME_PACKAGE_NAME "${PROJECT_NAME}-dev")
+set(CPACK_RPM_RUNTIME_PACKAGE_REQUIRES "rocm-core")
+set(CPACK_RPM_TESTS_PACKAGE_NAME "${PROJECT_NAME}-tests")
+set(CPACK_RPM_TESTS_PACKAGE_REQUIRES "${PROJECT_NAME}-dev")
 message("CPACK_RPM_PACKAGE_RELEASE: ${CPACK_RPM_PACKAGE_RELEASE}")
 
 if(NOT ROCM_DEP_ROCMCORE)
-    string(REGEX REPLACE ",? ?rocm-core" "" CPACK_RPM_PACKAGE_REQUIRES ${CPACK_RPM_PACKAGE_REQUIRES})
-    string(REGEX REPLACE ",? ?rocm-core" "" CPACK_DEBIAN_PACKAGE_DEPENDS ${CPACK_DEBIAN_PACKAGE_DEPENDS})
+  string(REGEX REPLACE ",? ?rocm-core" "" CPACK_RPM_RUNTIME_PACKAGE_REQUIRES ${CPACK_RPM_RUNTIME_PACKAGE_REQUIRES})
+  string(REGEX REPLACE ",? ?rocm-core" "" CPACK_DEBIAN_RUNTIME_PACKAGE_DEPENDS ${CPACK_DEBIAN_RUNTIME_PACKAGE_DEPENDS})
 endif()
 
-## Process the Rpm install/remove scripts to update the CPACK variables
-configure_file ( "${CMAKE_CURRENT_SOURCE_DIR}/RPM/post.in" RPM/post @ONLY )
-configure_file ( "${CMAKE_CURRENT_SOURCE_DIR}/RPM/postun.in" RPM/postun @ONLY )
+set(CPACK_COMPONENTS_ALL runtime)
 
-set ( CPACK_RPM_POST_INSTALL_SCRIPT_FILE "${CMAKE_CURRENT_BINARY_DIR}/RPM/post" )
-set ( CPACK_RPM_POST_UNINSTALL_SCRIPT_FILE "${CMAKE_CURRENT_BINARY_DIR}/RPM/postun" )
+include(CPack)
 
-include ( CPack )
+cpack_add_component(runtime
+  DISPLAY_NAME "Runtime"
+  DESCRIPTION "Dynamic libraries for the ROCtracer")
 
+cpack_add_component(tests
+  DISPLAY_NAME "Tests"
+  DESCRIPTION "Tests for the ROCtracer"
+  DEPENDS runtime)
+
+endif()
+
+find_package(Doxygen)
+if(DOXYGEN_FOUND)
+  ## Set input and output files
+  set(DOXYGEN_IN ${CMAKE_CURRENT_SOURCE_DIR}/doc/Doxyfile.in)
+  set(DOXYGEN_OUT ${CMAKE_CURRENT_BINARY_DIR}/Doxyfile)
+
+  ## Request to configure the file
+  configure_file(${DOXYGEN_IN} ${DOXYGEN_OUT} @ONLY)
+
+  add_custom_command(
+    OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/doc/html/index.html ${CMAKE_CURRENT_BINARY_DIR}/doc/latex/refman.pdf
+    COMMAND ${DOXYGEN_EXECUTABLE} ${DOXYGEN_OUT}
+    COMMAND make -C ${CMAKE_CURRENT_BINARY_DIR}/doc/latex pdf
+    MAIN_DEPENDENCY ${DOXYGEN_OUT} ${DOXYGEN_IN}
+    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/inc/roctracer.h
+    COMMENT "Generating documentation")
+
+  add_custom_target(doc DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/doc/html/index.html
+    ${CMAKE_CURRENT_BINARY_DIR}/doc/latex/refman.pdf)
+
+  install(FILES
+    "${CMAKE_CURRENT_BINARY_DIR}/doc/latex/refman.pdf"
+    DESTINATION ${CMAKE_INSTALL_DOCDIR}
+    RENAME "roctracer.pdf"
+    OPTIONAL
+    COMPONENT runtime)
+
+  install(DIRECTORY
+    "${CMAKE_CURRENT_BINARY_DIR}/doc/html/"
+    DESTINATION ${CMAKE_INSTALL_DATADIR}/html/${PROJECT_NAME}
+    OPTIONAL
+    COMPONENT runtime)
 endif()

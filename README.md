@@ -1,78 +1,165 @@
 # ROC-tracer
-```
-ROC-tracer library: Runtimes Generic Callback/Activity APIs.
-The goal of the implementation is to provide a generic independent from
-specific runtime profiler to trace API and asyncronous activity.
 
-The API provides functionality for registering the runtimes API callbacks and
-asyncronous activity records pool support.
+- **ROC-tracer library: Runtimes Generic Callback/Activity APIs**
 
-ROC-TX librray: code annotation evemts API
-Includes basic API: roctxMark, roctxRangePush, roctxRangePop.
-```
+  The goal of the implementation is to provide a generic independent from specific runtime profiler to trace API and asynchronous activity.
+
+  The API provides functionality for registering the runtimes API callbacks and asynchronous activity records pool support.
+
+- **ROC-TX library: Code Annotation Events API**
+
+  Includes API for:
+
+  - `roctxMark`
+  - `roctxRangePush`
+  - `roctxRangePop`
 
 ## Usage
-```
-rocTracer API:
-  To use the rocTracer API you need the API header and to link your application with roctracer .so librray:
-  - the API header: /opt/rocm/roctracer/include/roctracer.h
-  - the .so library: /opt/rocm/lib/libroctracer64.so
 
-rocTX API:
-  To use the rocTX API you need the API header and to link your application with roctx .so librray:
-  - the API header: /opt/rocm/roctracer/include/roctx.h
-  - the .so library: /opt/rocm/lib/libroctx64.so
-```
+### `rocTracer` API
 
-## The library source tree
-```
- - doc - documentation
- - inc/roctracer.h - rocTacer library public API header
- - inc/roctx.h - rocTX library puiblic API header
- - src  - Library sources
-   - core - rocTracer library API sources
-   - roctx - rocTX library API sources
-   - util - library utils sources
- - test - test suit
-   - MatrixTranspose - test based on HIP MatrixTranspose sample
-```
+To use the rocTracer API you need the API header and to link your application with `roctracer` .so library:
+
+- `/opt/rocm/include/roctracer/roctracer.h`
+
+  API header.
+
+- `/opt/rocm/lib/libroctracer64.so`
+
+  .so library.
+
+### `rocTX` API
+
+To use the rocTX API you need the API header and to link your application with `roctx` .so library:
+
+- `/opt/rocm/roctracer/include/roctx.h`
+
+  API header.
+
+- `/opt/rocm/lib/libroctx64.so`
+
+  .so library.
+
+## Library source tree
+
+- `doc`
+
+  Documentation.
+
+- `inc`
+
+  Include header files.
+
+  - `roctracer.h`
+
+    `rocTacer` library public API header.
+
+  - `roctx.h`
+  
+    `rocTX` library public API header.
+
+- `src`
+  
+  Library sources.
+
+  - `core`
+
+    `rocTracer` library API sources.
+
+  - `roctx`
+
+    `rocTX` library API sources.
+
+  - `util`
+
+    Library utils sources.
+
+- `test`
+
+  Test suit.
+
+  - `MatrixTranspose`
+
+    Test based on HIP MatrixTranspose sample.
 
 ## Documentation
- - API description: 
-   - ['roctracer' / 'rocTX' profiling C API specification](doc/roctracer_spec.md)
- - Code examples:
-   - [test/MatrixTranspose_test/MatrixTranspose.cpp](test/MatrixTranspose_test/MatrixTranspose.cpp)
-   - [test/MatrixTranspose/MatrixTranspose.cpp](test/MatrixTranspose/MatrixTranspose.cpp)
 
-## To build and run test
-```
- - ROCm is required
- 
- - Python modules requirements: CppHeaderParser, argparse.
+- API description:
+  - ['roctracer' / 'rocTX' profiling C API specification](docroctracer_spec.md)
+- Code examples:
+  - [test/MatrixTranspose_test/MatrixTranspose.cpp](testMatrixTranspose_test/MatrixTranspose.cpp)
+  - [test/MatrixTranspose/MatrixTranspose.cpp](test/MatrixTranspose/MatrixTranspose.cpp)
+
+## Build and run tests
+
+- ROCm is required
+
+- Packages required:
+
+  1. For Ubuntu 18.04 and Ubuntu 20.04 the following adds the needed packages:
+
+   ````shell
+   apt install python3 python3-pip gcc g++ libatomic1 make \
+    cmake doxygen graphviz texlive-full
+   ````
+
+  2. For CentOS 8.1 and RHEL 8.1 the following adds the needed packages:
+
+   ````shell
+   yum install -y python3 python3-pip gcc gcc-g++ make \
+    cmake libatomic doxygen graphviz texlive \
+    texlive-xtab texlive-multirow texlive-sectsty \
+    texlive-tocloft texlive-tabu texlive-adjustbox
+   ````
+
+  3. For SLES 15 Service Pack 15 the following adds the needed packages:
+
+   ````shell
+   zypper in python3 python3-pip gcc gcc-g++ make \
+    cmake libatomic doxygen graphviz \
+    texlive-scheme-medium texlive-hanging texlive-stackengine \
+    texlive-tocloft texlive-etoc texlive-tabu
+   ````
+
+- Python modules requirements: `CppHeaderParser`, `argparse`.
+
   To install:
-  sudo pip install CppHeaderParser argparse
 
- - CLone development branch of roctracer:
+  ```sh
+  pip3 install CppHeaderParser argparse
+  ```
+
+- Clone development branch of `roctracer`:
+
+  ```sh
   git clone -b amd-master https://github.com/ROCm-Developer-Tools/roctracer
+  ```
 
- - Set environment:
-  export CMAKE_PREFIX_PATH=/opt/rocm
- - To use custom HIP version:
-  export HIP_PATH=/opt/rocm/hip
+- To build `roctracer` library:
 
- - To build roctracer library:
-  export CMAKE_BUILD_TYPE=<debug|release> # release by default
-  
-  cd <your path>/roctracer && mkdir build && cd build && cmake -DCMAKE_INSTALL_PREFIX=/opt/rocm .. && make -j <nproc>
- or
-  ./build.sh
+   ```sh
+   cd <your path>/roctracer
+   ./build.sh
+   ```
 
- - To build and run test:
+- To build and run test:
+
+  ```sh
+  cd <your path>/roctracer/build
   make mytest
   run.sh
-  
- - To install:
+  ```
+
+## Installation
+
+Install by:
+
+  ```sh
   make install
- or
+  ```
+
+  or:
+
+  ```sh
   make package && dpkg -i *.deb
-```
+  ```
