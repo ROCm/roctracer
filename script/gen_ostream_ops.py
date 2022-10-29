@@ -52,12 +52,43 @@ LICENSE = \
 
 
 header_basic = \
-'template <typename T>\n' + \
+'namespace detail {\n' + \
+'  inline static void print_escaped_string(std::ostream& out, const char *v, size_t len) {\n' + \
+'    out << \'"\'; \n' + \
+'    for (size_t i = 0; i < len && v[i]; ++i) {\n' + \
+'      if (std::isprint((unsigned char)v[i])) std::operator<<(out, v[i]);\n' + \
+'      else {\n' + \
+'        std::ios_base::fmtflags flags(out.flags());\n' + \
+'        out << "\\\\x" << std::setfill(\'0\') << std::setw(2) << std::hex << (unsigned int)(unsigned char)v[i];\n' + \
+'        out.flags(flags);\n' + \
+'      }\n' + \
+'    }\n' + \
+'    out << \'"\'; \n' + \
+'  }\n' + \
+'\n' + \
+'  template <typename T>\n' + \
 '  inline static std::ostream& operator<<(std::ostream& out, const T& v) {\n' + \
 '     using std::operator<<;\n' + \
 '     static bool recursion = false;\n' + \
 '     if (recursion == false) { recursion = true; out << v; recursion = false; }\n' + \
-'     return out; }\n'
+'     return out;\n  }\n' + \
+'\n' + \
+'  inline static std::ostream &operator<<(std::ostream &out, const unsigned char &v) {\n' + \
+'    out << (unsigned int)v;\n' + \
+'    return out;\n  }\n' + \
+'\n' + \
+'  inline static std::ostream &operator<<(std::ostream &out, const char &v) {\n' + \
+'    out << (unsigned char)v;\n' + \
+'    return out;\n  }\n' + \
+'\n' + \
+'  template <size_t N>\n' + \
+'  inline static std::ostream &operator<<(std::ostream &out, const char (&v)[N]) {\n' + \
+'    print_escaped_string(out, v, N);\n' + \
+'    return out;\n  }\n' + \
+'\n' + \
+'  inline static std::ostream &operator<<(std::ostream &out, const char *v) {\n' + \
+'    print_escaped_string(out, v, strlen(v));\n' + \
+'    return out;\n  }\n'
 
 structs_analyzed = {}
 global_ops = ''
@@ -111,9 +142,9 @@ def process_struct(file_handle, cppHeader_struct, cppHeader, parent_hier_name, a
             indent = ""
             str += "    if (std::string(\"" + cppHeader_struct + "::" + name + "\").find(" + apiname.upper() + "_structs_regex" + ") != std::string::npos)   {\n"
             indent = "    "
-            str += indent + "  roctracer::" + apiname.lower() + "_support::operator<<(out, \"" + name + "=\");\n"
-            str += indent + "  roctracer::" + apiname.lower() + "_support::operator<<(out, v." + name + ");\n"
-            str += indent + "  roctracer::" + apiname.lower() + "_support::operator<<(out, \", \");\n"
+            str += indent + "  std::operator<<(out, \"" + name + "=\");\n"
+            str += indent + "  roctracer::" + apiname.lower() + "_support::detail::operator<<(out, v." + name + ");\n"
+            str += indent + "  std::operator<<(out, \", \");\n"
             str += "    }\n"
             if "void" not in mtype:
                 global_str += str
@@ -152,11 +183,14 @@ def gen_cppheader(infilepath, outfilepath, rank):
       header_s = \
         '#ifndef INC_' + apiname + '_OSTREAM_OPS_H_\n' + \
         '#define INC_' + apiname + '_OSTREAM_OPS_H_\n' + \
+        '\n' + \
+        '#include "roctracer.h"\n' + \
+        '\n' + \
         '#ifdef __cplusplus\n' + \
         '#include <iostream>\n' + \
-        '\n' + \
-        '#include "roctracer.h"\n'
-      header_s += '#include <string>\n'
+        '#include <iomanip>\n' + \
+        '#include <string>\n' + \
+        '#include <cstring>\n'
 
       output_filename_h.write(header_s)
       output_filename_h.write('\n')
@@ -181,7 +215,7 @@ def gen_cppheader(infilepath, outfilepath, rank):
         if len(cppHeader.classes[c]["properties"]["public"]) != 0:
           output_filename_h.write("inline static std::ostream& operator<<(std::ostream& out, const " + c + "& v)\n")
           output_filename_h.write("{\n")
-          output_filename_h.write("  roctracer::" + apiname.lower() + "_support::operator<<(out, '{');\n")
+          output_filename_h.write("  std::operator<<(out, '{');\n")
           output_filename_h.write("  " + apiname.upper() + "_depth_max_cnt++;\n")
           output_filename_h.write("  if (" + apiname.upper() + "_depth_max == -1 || " + apiname.upper() + "_depth_max_cnt <= " + apiname.upper() + "_depth_max" + ") {\n" )
           process_struct(output_filename_h, c, cppHeader, "", apiname)
@@ -190,15 +224,15 @@ def gen_cppheader(infilepath, outfilepath, rank):
           output_filename_h.write(global_str)
           output_filename_h.write("  };\n")
           output_filename_h.write("  " + apiname.upper() + "_depth_max_cnt--;\n")
-          output_filename_h.write("  roctracer::" + apiname.lower() + "_support::operator<<(out, '}');\n")
+          output_filename_h.write("  std::operator<<(out, '}');\n")
           output_filename_h.write("  return out;\n")
           output_filename_h.write("}\n")
           global_str = ''
-          global_ops += "inline static std::ostream& operator<<(std::ostream& out, const " + c + "& v)\n" + "{\n" + "  roctracer::" + apiname.lower() + "_support::operator<<(out, v);\n" + "  return out;\n" + "}\n\n"
+          global_ops += "inline static std::ostream& operator<<(std::ostream& out, const " + c + "& v)\n" + "{\n" + "  roctracer::" + apiname.lower() + "_support::detail::operator<<(out, v);\n" + "  return out;\n" + "}\n\n"
 
     if rank == 1 or rank == 2:
       footer = '// end ostream ops for '+ apiname + ' \n'
-      footer += '};};\n\n'
+      footer += '};};};\n\n'
       output_filename_h.write(footer)
       output_filename_h.write(global_ops)
       footer = '#endif //__cplusplus\n' + \

@@ -1,4 +1,4 @@
-/* Copyright (c) 2018-2022 Advanced Micro Devices, Inc.
+/* Copyright (c) 2022 Advanced Micro Devices, Inc.
 
  Permission is hereby granted, free of charge, to any person obtaining a copy
  of this software and associated documentation files (the "Software"), to deal
@@ -18,20 +18,34 @@
  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  THE SOFTWARE. */
 
-#ifndef ROCTRACER_HIP_H_
-#define ROCTRACER_HIP_H_
+#include "util.h"
 
-#include "roctracer.h"
+#include <cstdio>
+#include <cstdarg>
+#include <string>
 
-#include <hip/hip_runtime.h>
-#include "hip_ostream_ops.h"
-#include <hip/amd_detail/hip_prof_str.h>
+namespace roctracer {
 
-typedef enum {
-  HIP_OP_ID_DISPATCH = 0,
-  HIP_OP_ID_COPY = 1,
-  HIP_OP_ID_BARRIER = 2,
-  HIP_OP_ID_NUMBER = 3
-} hip_op_id_t;
+std::string string_vprintf(const char* format, va_list va) {
+  va_list copy;
 
-#endif  // ROCTRACER_HIP_H_
+  va_copy(copy, va);
+  size_t size = vsnprintf(NULL, 0, format, copy);
+  va_end(copy);
+
+  std::string str(size, '\0');
+  vsprintf(&str[0], format, va);
+
+  return str;
+}
+
+std::string string_printf(const char* format, ...) {
+  va_list va;
+  va_start(va, format);
+  std::string str(string_vprintf(format, va));
+  va_end(va);
+
+  return str;
+}
+
+}  // namespace roctracer

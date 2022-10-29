@@ -14,9 +14,11 @@ MatrixTranspose_hip_input_trace --check-events .*
 copy_hsa_trace --check-events .*
 copy_hsa_input_trace --check-events .*
 load_unload_reload_trace --check-order .* --ignore-count hsa_agent_get_info
-hsa_co_trace --check-none
 code_obj_trace --check-none
 trace_buffer --check-none
 memory_pool --check-none
+activity_and_callback_trace --check-order .*
+multi_pool_activities_trace --check-order .*
 roctx_test_trace --check-count .*
 backward_compat_test_trace --check-none
+dlopen --check-none

@@ -62,13 +62,16 @@ xeval_test() {
   test_number=$test_number
 }
 
-eval_test() {
-  bright=$(tput bold)
-  red=$(tput setaf 1)
-  green=$(tput setaf 2)
-  blue=$(tput setaf 4)
-  normal=$(tput sgr0)
+ncolors=$(tput colors || echo 0)
+if [ -n "$ncolors" ] && [ $ncolors -ge 8 ]; then
+  bright="$(tput bold     || echo)"
+  red="$(tput setaf 1     || echo)"
+  green="$(tput setaf 2   || echo)"
+  blue="$(tput setaf 4    || echo)"
+  normal="$(tput sgr0     || echo)"
+fi
 
+eval_test() {
   label=$1
   cmdline=$2
   test_name=$3
@@ -95,9 +98,9 @@ eval_test() {
       fi
     fi
     if [ $is_failed = 0 ] ; then
-      echo "${bright}${blue}$test_name: ${green}PASSED${normal}"
+      echo "${bright:-}${blue:-}$test_name: ${green:-}PASSED${normal:-}"
     else
-      echo "${bright}${blue}$test_name: ${red}FAILED${normal}"
+      echo "${bright:-}${blue:-}$test_name: ${red:-}FAILED${normal:-}"
       failed_tests="$failed_tests\n  $test_number: $test_name - \"$label\""
       test_status=$(($test_status + 1))
     fi
@@ -166,21 +169,21 @@ unset ROCP_INPUT
 # Check that the tracer tool can be unloaded and then reloaded.
 eval_test "Load/Unload/Reload the tracer tool" ./test/load_unload_reload_test load_unload_reload_trace
 
-export HSA_TOOLS_LIB="./test/libhsaco_test.so"
-eval_test "tool HSA codeobj" ./test/MatrixTranspose hsa_co_trace
-
-export ROCP_TOOL_LIB=./test/libcodeobj_test.so
-export HSA_TOOLS_LIB="librocprofiler64.so"
+export LD_PRELOAD=./test/libcodeobj_test.so
 eval_test "tool tracer codeobj" ./test/MatrixTranspose code_obj_trace
 
+unset LD_PRELOAD
 #valgrind --leak-check=full $tbin
 #valgrind --tool=massif $tbin
 #ms_print massif.out.<N>
 
 eval_test "directed TraceBuffer test" ./test/trace_buffer trace_buffer
 eval_test "directed MemoryPool test" ./test/memory_pool memory_pool
+eval_test "enable/disable callbacks and activities test" ./test/activity_and_callback activity_and_callback_trace
+eval_test "use multiple memory pools in HIP activities test" ./test/multi_pool_activities multi_pool_activities_trace
+eval_test "Dynamically load the tracer library test" ./test/dlopen dlopen
 
-eval_test "backward compatibilty tests" ./test/backward_compat_test backward_compat_test_trace
+eval_test "backward compatibility tests" ./test/backward_compat_test backward_compat_test_trace
 
 echo "$test_number tests total / $test_runnum tests run / $test_status tests failed"
 if [ $test_status != 0 ] ; then
