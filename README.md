@@ -42,7 +42,7 @@ To use the rocTX API you need the API header and to link your application with `
 
 ## Library source tree
 
-- `doc`
+- `docs`
 
   Documentation.
 
@@ -85,10 +85,19 @@ To use the rocTX API you need the API header and to link your application with `
 ## Documentation
 
 - API description:
-  - ['roctracer' / 'rocTX' profiling C API specification](doc/roctracer_spec.md)
+  - ['roctracer'/'rocTX' profiling C API specification](docs/roctracer_spec.md)
 - Code examples:
-  - [test/MatrixTranspose_test/MatrixTranspose.cpp](testMatrixTranspose_test/MatrixTranspose.cpp)
-  - [test/MatrixTranspose/MatrixTranspose.cpp](test/MatrixTranspose/MatrixTranspose.cpp)
+  - [test/hip/MatrixTranspose.cpp](test/hip/MatrixTranspose.cpp)
+
+Run the steps below to build documentation locally.
+
+```
+cd docs
+
+pip3 install -r .sphinx/requirements.txt
+
+python3 -m sphinx -T -E -b html -d _build/doctrees -D language=en . _build/html
+```
 
 ## Build and run tests
 
