@@ -1,4 +1,5 @@
 .*
+!.github
 !.gitignore
 *.o
 *.exe
@@ -7,6 +8,8 @@
 build
 
 # documentation artifacts
+!.sphinx
+!.doxygen
 _build/
 _images/
 _static/
