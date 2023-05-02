@@ -56,11 +56,22 @@ header_basic = \
 '  inline static void print_escaped_string(std::ostream& out, const char *v, size_t len) {\n' + \
 '    out << \'"\'; \n' + \
 '    for (size_t i = 0; i < len && v[i]; ++i) {\n' + \
-'      if (std::isprint((unsigned char)v[i])) std::operator<<(out, v[i]);\n' + \
-'      else {\n' + \
-'        std::ios_base::fmtflags flags(out.flags());\n' + \
-'        out << "\\\\x" << std::setfill(\'0\') << std::setw(2) << std::hex << (unsigned int)(unsigned char)v[i];\n' + \
-'        out.flags(flags);\n' + \
+'      switch (v[i]) {\n' + \
+'      case \'\\"\': out << "\\\\\\""; break;\n' + \
+'      case \'\\\\\': out << "\\\\\\\\"; break;\n' + \
+'      case \'\\b\': out << "\\\\\\b"; break;\n' + \
+'      case \'\\f\': out << "\\\\\\f"; break;\n' + \
+'      case \'\\n\': out << "\\\\\\n"; break;\n' + \
+'      case \'\\r\': out << "\\\\\\r"; break;\n' + \
+'      case \'\\t\': out << "\\\\\\t"; break;\n' + \
+'      default:\n' + \
+'        if (std::isprint((unsigned char)v[i])) std::operator<<(out, v[i]);\n' + \
+'        else {\n' + \
+'          std::ios_base::fmtflags flags(out.flags());\n' + \
+'          out << "\\\\x" << std::setfill(\'0\') << std::setw(2) << std::hex << (unsigned int)(unsigned char)v[i];\n' + \
+'          out.flags(flags);\n' + \
+'        }\n' + \
+'        break;\n' + \
 '      }\n' + \
 '    }\n' + \
 '    out << \'"\'; \n' + \
@@ -143,7 +154,10 @@ def process_struct(file_handle, cppHeader_struct, cppHeader, parent_hier_name, a
             str += "    if (std::string(\"" + cppHeader_struct + "::" + name + "\").find(" + apiname.upper() + "_structs_regex" + ") != std::string::npos)   {\n"
             indent = "    "
             str += indent + "  std::operator<<(out, \"" + name + "=\");\n"
-            str += indent + "  roctracer::" + apiname.lower() + "_support::detail::operator<<(out, v." + name + ");\n"
+            if (name == 'reserved' and apiname.upper() == 'HIP'):
+              str += indent + "  roctracer::" + apiname.lower() + "_support::detail::operator<<(out, 0);\n"
+            else:
+              str += indent + "  roctracer::" + apiname.lower() + "_support::detail::operator<<(out, v." + name + ");\n"
             str += indent + "  std::operator<<(out, \", \");\n"
             str += "    }\n"
             if "void" not in mtype:
