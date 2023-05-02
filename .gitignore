@@ -8,6 +8,7 @@
 build
 
 # documentation artifacts
+!.readthedocs.yaml
 !.sphinx
 !.doxygen
 _build/
