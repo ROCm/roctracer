@@ -5,7 +5,4 @@ subtrees:
   - numbered: False
     entries:
     - file: roctracer_spec
-    - file: usage
-    - file: source_tree
-    - file: build
     - file: api
