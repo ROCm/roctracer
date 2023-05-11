@@ -36,7 +36,7 @@
 
 - `test`
 
-  Test suit.
+  Test suite.
 
   - `MatrixTranspose`
 
