@@ -8,3 +8,4 @@ subtrees:
     - file: usage
     - file: source_tree
     - file: build
+    - file: api
