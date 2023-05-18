@@ -41,7 +41,7 @@ docutils==0.19
     #   myst-parser
     #   pydata-sphinx-theme
     #   sphinx
-doxysphinx==3.3.3
+doxysphinx==3.2.1
     # via rocm-docs-core
 gitdb==4.0.10
     # via gitpython

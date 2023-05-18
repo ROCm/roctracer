@@ -17,7 +17,6 @@ if len(version) > 0:
     name = f"{name} {version} Documentation"
 
 external_toc_path = "./sphinx/_toc.yml"
-doxygen_root="doxygen"
 
 docs_core = ROCmDocs(name)
 docs_core.run_doxygen(doxygen_root="doxygen", doxygen_path=".")
