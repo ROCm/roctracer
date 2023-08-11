@@ -385,11 +385,13 @@ void roctracer_start();
 
 Tracing stop:
 void roctracer_stop();
+
+Note that you must include #include <roctracer/roctracer_ext.h> before calling the start and stop APIs.
 ```
 ## 4. rocTracer Usage Code Examples
 ### 4.1. HIP API and HCC ops, GPU Activity Tracing
 ```
-#include <roctracer_hip.h>
+#include <roctracer/roctracer_ext.h>
 
 // HIP API callback function
 void hip_api_callback(
@@ -609,7 +611,7 @@ int main() {
 /////////////////////////////////////////////////////////////////////////////
 // HIP/HCC Callbacks/Activity tracing
 /////////////////////////////////////////////////////////////////////////////
-#include <roctracer_hip.h>
+#include <roctracer/roctracer_ext.h>
 
 // Macro to check ROC-tracer calls status
 #define ROCTRACER_CALL(call)                                               \
@@ -728,6 +730,21 @@ void stop_tracing() {
              << std::flush;
 }
 /////////////////////////////////////////////////////////////////////////////
+```
+### 4.3. Tracing Control
+```
+#include <roctracer/include/roctracer_ext.h>
+    
+// allocate the memory on the device side
+hipMalloc((void**)&gpuMatrix, NUM * sizeof(float));
+hipMalloc((void**)&gpuTransposeMatrix, NUM * sizeof(float));
+
+roctracer_start();
+//  Lauching kernel from host
+hipLaunchKernelGGL(
+matrixTranspose, dim3(WIDTH / THREADS_PER_BLOCK_X, WIDTH / THREADS_PER_BLOCK_Y),
+    dim3(THREADS_PER_BLOCK_X, THREADS_PER_BLOCK_Y), 0, 0, gpuTransposeMatrix, gpuMatrix, WIDTH);
+roctracer_stop();
 ```
 ## 5. rocTX application code annotation API
 ```
