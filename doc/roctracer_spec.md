@@ -7,10 +7,10 @@ ROC-TX API version 1
 the runtime API calls and asynchronous GPU activity.
 - The rocTX API is provided for application code annotation.
 ```
-## 1. High level overview
+## 1. High-level overview
 ```
-The goal of the implementation is to provide a runtime independent API
-for tracing of runtime calls and asynchronous activity, like GPU kernel
+The goal of the implementation is to provide a runtime-independent API
+for tracing runtime calls and asynchronous activity, like GPU kernel
 dispatches and memory moves. The tracing includes callback API for
 runtime API tracing and activity API for asynchronous activity records
 logging.
@@ -24,16 +24,15 @@ The rocTracer library is an API that intercepts runtime API calls and
 traces asynchronous activity. The activity tracing results are recorded
 in a ring buffer.
 
-The rocTX contains application code instrumentation API to support high
-level correlation of runtime API/activity events. The API includes mark
+The rocTX contains application code instrumentation API to support high-level correlation of runtime API/activity events. The API includes mark
 and nested ranges.
 ```
 ## 2. General API
 ### 2.1. Description
 ```
-The library supports method for getting the error number and error string
+The library supports methods for getting the error number and error string
 of the last failed library API call. It allows to check the conformance
-of used library API header and the library binary, the version macros and
+of the used library API header and the library binary, the version macros and
 API methods can be used.
 
 Returning the error and error string methods:
@@ -66,10 +65,10 @@ const char* roctracer_error_string();
 ```
 ### 2.3. Library version
 ```
-The library provides major and minor versions. Major version is for
-incompatible API changes and minor version for bug fixes.
+The library provides major and minor versions. The major version is for
+incompatible API changes and a minor version for bug fixes.
 
-API version macros defined in the library API header ‘roctracer.h’:
+API version macros defined in the library API header `roctracer.h`:
 ROCTRACER_VERSION_MAJOR
 ROCTRACER_VERSION_MINOR
 
@@ -138,8 +137,9 @@ External correlation ID API:
                                                          correlation id for the calling thread
 
 Tracing control API:
-•	roctracer_start – tracing start
-•	roctracer_stop – tracer stop
+•	roctracer_start – marks the beginning of the tracing
+•	roctracer_stop – marks the end of the tracing
+Refer to [Trace Control API]() for more details.
 
 ```
 ### 3.2. Tracing Domains
@@ -218,7 +218,7 @@ roctracer_status_t roctracer_disable_domain_callback(
 
 roctracer_status_t roctracer_disable_callback();
 ```
-### 3.4 Activity API
+### 3.4. Activity API
 ```
 The activity records are asynchronously logged to the pool and can be
 associated with the respective API callbacks using the correlation ID.
@@ -314,7 +314,7 @@ roctracer_pool_t* roctracer_default_pool();
 roctracer_pool_t* roctracer_default_pool_expl(
    roctracer_pool_t* pool);          // new default pool if not NULL
 ```
-Enable activity records logging:
+#### 3.4.1. Enable activity records logging:
 ```
 roctracer_status_t roctracer_enable_op_activity(
    activity_domain_t domain,         // tracing domain
@@ -357,7 +357,7 @@ Return correlated GPU/CPU system timestamp:
 roctracer_status_t roctracer_get_timestamp(
     uint64_t* timestamp);            // [out] return timestamp
 ```
-External correlation ID API
+#### 3.4.2. External correlation ID API
 ```
 The API provides activity records to associate rocTracer correlation IDs with
 IDs provided by external APIs. The external ID records are identified by
@@ -378,20 +378,24 @@ roctracer_status_t roctracer_activity_pop_external_correlation_id(
     activity_correlation_id_t* last_id);  // returns the last external correlation id
                                           // if not NULL
 ```
-Tracing control API
+#### 3.4.3. Tracing control API
 ```
-Tracing start:
+The following tracing control APIs mark the block of code to be traced and require the tracing to be started using the command-line option `trace-start<on|off>`. The `trace-start` option allows you to selectively trace a code block or HIP API(s) enclosed within the tracing control APIs. The default value for the `trace-start` option is [on] which ensures that the entire application is traced instead of selective tracing. The value [off] ensures that tracing is limited to the code block between the tracing control (start/stop) APIs. Note that in case, no tracing control APIs are specified in the application, executing `trace-start off' disables tracing for the entire application.
+
+Trace start API:
 void roctracer_start();
 
-Tracing stop:
+Trace stop API:
 void roctracer_stop();
 
-Note that you must include #include <roctracer/roctracer_ext.h> before calling the start and stop APIs.
+Note that you must include header `#include <include/roctracer/roctracer_ext.h>` when calling the tracing control APIs.
+
+See the usage of these APIs in [Tracing Control]() example below.
 ```
 ## 4. rocTracer Usage Code Examples
 ### 4.1. HIP API and HCC ops, GPU Activity Tracing
 ```
-#include <roctracer/roctracer_ext.h>
+#include <include/roctracer/roctracer_ext.h>
 
 // HIP API callback function
 void hip_api_callback(
@@ -611,7 +615,7 @@ int main() {
 /////////////////////////////////////////////////////////////////////////////
 // HIP/HCC Callbacks/Activity tracing
 /////////////////////////////////////////////////////////////////////////////
-#include <roctracer/roctracer_ext.h>
+#include <include/roctracer/roctracer_ext.h>
 
 // Macro to check ROC-tracer calls status
 #define ROCTRACER_CALL(call)                                               \
@@ -733,7 +737,7 @@ void stop_tracing() {
 ```
 ### 4.3. Tracing Control
 ```
-#include <roctracer/include/roctracer_ext.h>
+#include <include/roctracer/roctracer_ext.h>
     
 // allocate the memory on the device side
 hipMalloc((void**)&gpuMatrix, NUM * sizeof(float));
@@ -745,7 +749,21 @@ hipLaunchKernelGGL(
 matrixTranspose, dim3(WIDTH / THREADS_PER_BLOCK_X, WIDTH / THREADS_PER_BLOCK_Y),
     dim3(THREADS_PER_BLOCK_X, THREADS_PER_BLOCK_Y), 0, 0, gpuTransposeMatrix, gpuMatrix, WIDTH);
 roctracer_stop();
+
 ```
+**Execute:**
+```bash
+rocprof --trace-start off --hip-trace MatrixTranspose
+```
+**Result:**
+```bash
+cat results.hip_stats.csv
+"Name","Calls","TotalDurationNs","AverageNs","Percentage"
+"hipLaunchKernel",10,393892,39389,98.6723180825267
+"__hipPushCallConfiguration",10,2880,288,0.7214573438345457
+"__hipPopCallConfiguration",10,2420,242,0.6062245736387503
+```
+
 ## 5. rocTX application code annotation API
 ```
 Basic annotation API: markers and nested ranges.
