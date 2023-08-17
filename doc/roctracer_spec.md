@@ -35,20 +35,22 @@ of the last failed library API call. It allows to check the conformance
 of the used library API header and the library binary, the version macros and
 API methods can be used.
 
+**Returning the error and error string methods:**
 ```
-Returning the error and error string methods:
 •	roctracer_status_t – error code enumeration
 •	roctracer_error_string – method for returning the error string
-
-Library version:
+```
+**Library version:**
+```
 •	ROCTRACER_VERSION_MAJOR – API major version macro
 •	ROCTRACER_VERSION_MINOR – API minor version macro
 •	roctracer_version_major – library major version
 •	roctracer_version_minor – library minor version
 ```
 ### 2.2. Error Codes and Error String Methods
+
+**Error code enumeration:**
 ```
-Error code enumeration:
 typedef enum {
    ROCTRACER_STATUS_SUCCESS = 0,
    ROCTRACER_STATUS_ERROR = 1,
@@ -60,8 +62,9 @@ typedef enum {
    ROCTRACER_STATUS_HCC_OPS_ERR = 7,
    ROCTRACER_STATUS_ROCTX_ERR = 8,
 } roctracer_status_t;
-
-Return error string:
+```
+**Return error string:**
+```
 const char* roctracer_error_string();
 ```
 ### 2.3. Library Version
@@ -69,27 +72,30 @@ const char* roctracer_error_string();
 The library provides major and minor versions. The major version is for
 incompatible API changes and a minor version for bug fixes.
 
-API version macros defined in the library API header `roctracer.h`:
+**API version macros defined in the library API header `roctracer.h`:**
+```
 ROCTRACER_VERSION_MAJOR
 ROCTRACER_VERSION_MINOR
-
-Methods to check library major and minor venison:
+```
+**Methods to check library major and minor versions:**
+```
 uint32_t roctracer_major_version();
 uint32_t roctracer_minor_version();
+```
 
 ## 3. Frontend API
 ### 3.1. Description
 
 The rocTracer provides support for runtime API callbacks and activity
 records logging. The APIs of different runtimes at different levels
-are considered as different API domains with assigned domain IDs. For
+are considered different API domains with assigned domain IDs. For
 example, language level and driver level. The API callbacks provide
-the API calls arguments and are called on  two phases on “enter” and
-on “exit”. The activity records are logged to the ring buffer and can
+the API calls arguments and are called in two phases “enter” and
+“exit”. The activity records are logged to the ring buffer and can
 be associated with the respective API calls using the correlation ID.
-Activity API can be used to enable collecting of the records with
+Activity API can be used to enable collecting the records with
 timestamping data for API calls and asynchronous activity like the
-kernel submits, memory copies and barriers
+kernel submits, memory copies, and barriers
 
 **Tracing domains:**
 ```
@@ -170,14 +176,14 @@ typedef enum {
    ACTIVITY_DOMAIN_NUMBER = 7
 } activity_domain_t;
 ```
-Return name by given domain and Op code:
+**Return name by given domain and Op code:**
 ```
 const char* roctracer_op_string(  // NULL returned on error and error number is set
    uint32_t domain,		  // tracing domain
    uint32_t op,	                  // activity op code
    uint32_t kind);                // activity kind
 ```
-Return Op code and kind by given string:
+**Return Op code and kind by given string:**
 ```
 roctracer_status_t roctracer_op_code(
     uint32_t domain,              // tracing domain
@@ -191,14 +197,14 @@ The tracer provides support for runtime API callbacks and activity records
 logging. The API callbacks provide the API calls arguments and are called
 on two phases on “enter”, on “exit”.
 
-API phase passed to the callbacks:
+**API phase passed to the callbacks:**
 ```
 typedef enum {
    ROCTRACER_API_PHASE_ENTER,
    ROCTRACER_API_PHASE_EXIT,
 } roctracer_api_phase_t;
 ```
-Runtime API callback type:
+**Runtime API callback type:**
 ```
 typedef void  (*roctracer_rtapi_callback_t)(
    uint32_t domain,   // runtime API domain
@@ -207,7 +213,7 @@ typedef void  (*roctracer_rtapi_callback_t)(
 		      // arguments
    void* arg);        // [in/out] user passed data
 ```
-Enable runtime API callbacks:
+**Enable runtime API callbacks:**
 ```
 roctracer_status_t roctracer_enable_op_callback(
    activity_domain_t domain,             // tracing domain
@@ -225,7 +231,7 @@ roctracer_status_t roctracer_enable_callback(
    activity_rtapi_callback_t callback,   // callback function pointer
    void* arg);                           // [in/out] callback arg
 ```
-Disable runtime API callbacks:
+**Disable runtime API callbacks:**
 ```
 roctracer_status_t roctracer_disable_op_callback(
     activity_domain_t domain,           // tracing domain
@@ -248,7 +254,7 @@ memory copies, and barriers.
 // Correlation id
 typedef uint64_t activity_correlation_id_t;
 ```
-Activity record type:
+**Activity record type:**
 ```
 // Activity record type
 struct activity_record_t {
@@ -274,20 +280,20 @@ struct activity_record_t {
    size_t bytes;                              // data size bytes
 };
 ```
-Return next record:
+**Return next record:**
 ```
 static inline int roctracer_next_record(
    const activity_record_t* record,         // [in] record ptr
    const activity_record_t** next);         // [out] next record ptr
 ```
-Tracer allocator type:
+**Tracer allocator type:**
 ```
 typedef void (*roctracer_allocator_t)(
    char** ptr,       	// memory pointer
    size_t size,        // memory size
    void* arg);         // allocator arg
 ```
-Pool callback type:
+**Pool callback type:**
 ```
 typedef void (*roctracer_buffer_callback_t)(
    const char* begin,   // [in] available buffered trace records
@@ -295,7 +301,7 @@ typedef void (*roctracer_buffer_callback_t)(
    void* arg);          // [in/out] callback arg
 ```
 
-Tracer properties:
+**Tracer properties:**
 ```
 typedef struct {
    uint32_t mode;                                    // roctracer mode
@@ -312,12 +318,11 @@ typedef struct {
 } roctracer_properties_t;
 ```
 
-Tracer memory pool handle type:
+**Tracer memory pool handle type:**
 ```
 typedef void roctracer_pool_t;
 ```
-
-Create tracer memory pool:
+**Create tracer memory pool:**
 ```
 roctracer_status_t roctracer_open_pool(
    const roctracer_properties_t* properties); // tracer pool properties
@@ -330,8 +335,7 @@ roctracer_status_t roctracer_open_pool_expl(
                                              // yet; otherwise the error is 
                                              // generated
 ```
-                                                          				
-Close tracer memory pool:
+**Close tracer memory pool:**
 ```
 roctracer_status_t roctracer_close_pool();
 
@@ -384,7 +388,7 @@ roctracer_status_t roctracer_flush_activity_expl(
    roctracer_pool_t* pool);          // memory pool, NULL means default pool
 ```
 
-Return correlated GPU/CPU system timestamp:
+**Return correlated GPU/CPU system timestamp:**
 ```
 roctracer_status_t roctracer_get_timestamp(
     uint64_t* timestamp);            // [out] return timestamp
@@ -417,12 +421,11 @@ roctracer_status_t roctracer_activity_pop_external_correlation_id(
 
 The following tracing control APIs mark the block of code to be traced and require the tracing to be started using the command-line option `trace-start<on|off>`. The `trace-start` option allows you to selectively trace a code block or HIP API(s) enclosed within the tracing control APIs. The default value for the `trace-start` option is [on] which ensures that the entire application is traced instead of selective tracing. The value [off] ensures that tracing is limited to the code block between the tracing control (start/stop) APIs. Note that in case, no tracing control APIs are specified in the application, executing `trace-start off' disables tracing for the entire application.
 
-Trace start API:
+**Trace start API:**
 ```
 void roctracer_start();
 ```
-
-Trace stop API:
+**Trace stop API:**
 ```
 void roctracer_stop();
 ```
@@ -504,9 +507,9 @@ int main() {
 ```
 ### 4.2. MatrixTranspose HIP Sample with all APIs/activity Tracing Enabled
 
-This shows a MatrixTranspose HIP sample with enabled tracing of
+This shows a MatrixTranspose HIP sample with the enabled tracing of
 all HIP API and all GPU asynchronous activity.
-
+```
 /*
 Copyright (c) 2015-2016 Advanced Micro Devices, Inc. All rights reserved.
 
@@ -528,7 +531,7 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
-```
+
 #include <iostream>
 
 // hip header file
@@ -649,7 +652,7 @@ int main() {
    return errors;
 }
 ```
-HIP/HCC Callbacks/Activity tracing:
+**HIP/HCC Callbacks/Activity tracing:**
 ```
 #include <include/roctracer/roctracer_ext.h>
 
@@ -769,7 +772,7 @@ void stop_tracing() {
    std::cout << "# STOP  #############################" << std::endl 
              << std::flush;
 }
-/////////////////////////////////////////////////////////////////////////////
+
 ```
 ### 4.3. Tracing Control
 ```
@@ -787,7 +790,7 @@ matrixTranspose, dim3(WIDTH / THREADS_PER_BLOCK_X, WIDTH / THREADS_PER_BLOCK_Y),
 roctracer_stop();
 
 ```
-**Execute:**
+**Execute Command:**
 ```bash
 rocprof --trace-start off --hip-trace MatrixTranspose
 ```
