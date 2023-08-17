@@ -87,8 +87,7 @@ To use the rocTX API you need the API header and to link your application with `
 - API description:
   - ['roctracer' / 'rocTX' profiling C API specification](doc/roctracer_spec.md)
 - Code examples:
-  - [test/MatrixTranspose_test/MatrixTranspose.cpp](testMatrixTranspose_test/MatrixTranspose.cpp)
-  - [test/MatrixTranspose/MatrixTranspose.cpp](test/MatrixTranspose/MatrixTranspose.cpp)
+  - [MatrixTranspose.cpp](test/hip/MatrixTranspose.cpp)
 
 ## Build and run tests
 
