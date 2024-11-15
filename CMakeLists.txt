@@ -42,7 +42,11 @@ endif()
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-add_compile_options(-Wall -Werror)
+add_compile_options(-Wall)
+option(ROCTRACER_WERROR "Treat warnings as errors" ON)
+if(ROCTRACER_WERROR)
+  add_compile_options(-Werror)
+endif()
 # To set addition RUNPATH in libraries
 # installed in /opt/rocm-ver/lib/roctracer
 set(ROCM_APPEND_PRIVLIB_RPATH "$ORIGIN/..")
