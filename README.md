@@ -100,7 +100,7 @@ To use the rocTX API you need the API header and to link your application with `
 
    ````shell
    apt install python3 python3-pip gcc g++ libatomic1 make rocm-llvm-dev \
-    cmake doxygen graphviz texlive-full
+    cmake doxygen graphviz texlive-full rpm
    ````
 
   2. For CentOS 8.1 and RHEL 8.1 the following adds the needed packages:
@@ -109,7 +109,7 @@ To use the rocTX API you need the API header and to link your application with `
    yum install -y python3 python3-pip gcc gcc-g++ make rocm-llvm-devel \
     cmake libatomic doxygen graphviz texlive \
     texlive-xtab texlive-multirow texlive-sectsty \
-    texlive-tocloft texlive-tabu texlive-adjustbox
+    texlive-tocloft texlive-tabu texlive-adjustbox rpm
    ````
 
   3. For SLES 15 Service Pack 15 the following adds the needed packages:
@@ -118,7 +118,7 @@ To use the rocTX API you need the API header and to link your application with `
    zypper in python3 python3-pip gcc gcc-g++ make rocm-llvm-devel \
     cmake libatomic doxygen graphviz \
     texlive-scheme-medium texlive-hanging texlive-stackengine \
-    texlive-tocloft texlive-etoc texlive-tabu
+    texlive-tocloft texlive-etoc texlive-tabu rpm
    ````
 
 - Python modules requirements: `CppHeaderParser`, `argparse`.
